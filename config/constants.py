@@ -39,4 +39,4 @@ MARKET_CLOSE_TIME = "15:30"
 
 DATABASE_NAME = "vyom_v3.db"
 
-LOG_FILE_NAME = "vyom.log"
+LOG_FILE_NAME = "vyom_v3.log"
