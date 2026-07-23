@@ -13,40 +13,28 @@ class AIAnalyst:
     """
 
     def analyze(self, candidate: ScanCandidate) -> ScanCandidate:
-        """
-        Explain why the stock received its score.
-        """
 
-        candidate.reasons.clear()
+        # Preserve ScoreCard reasons
+        reasons = list(candidate.reasons)
 
         if candidate.score >= 80:
-            candidate.reasons.append(
-                "Strong technical setup detected."
-            )
+            reasons.append("Strong technical setup detected.")
 
         elif candidate.score >= 60:
-            candidate.reasons.append(
-                "Momentum is improving."
-            )
+            reasons.append("Momentum is improving.")
 
         else:
-            candidate.reasons.append(
-                "No high-probability setup detected."
-            )
+            reasons.append("Score below BUY threshold.")
 
         if candidate.decision == "BUY":
-            candidate.reasons.append(
-                "Price is trading above key moving averages."
-            )
+            reasons.append("BUY signal confirmed.")
 
         elif candidate.decision == "WATCH":
-            candidate.reasons.append(
-                "Monitor for confirmation before entry."
-            )
+            reasons.append("Watch for confirmation.")
 
         else:
-            candidate.reasons.append(
-                "Capital preservation preferred."
-            )
+            reasons.append("Capital preservation preferred.")
+
+        candidate.reasons = reasons
 
         return candidate

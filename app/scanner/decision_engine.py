@@ -1,5 +1,5 @@
 """
-Decision Engine for VYOM.
+Decision Engine.
 """
 
 from __future__ import annotations
@@ -8,28 +8,26 @@ from app.scanner.models import ScanCandidate
 
 
 class DecisionEngine:
-    """
-    Converts a numerical score into a trading decision.
-    """
 
-    BUY_SCORE = 80
-    WATCH_SCORE = 60
+    def evaluate(
+        self,
+        candidate: ScanCandidate,
+    ) -> ScanCandidate:
 
-    def evaluate(self, candidate: ScanCandidate) -> ScanCandidate:
-        """
-        Assign BUY / WATCH / HOLD based on score.
-        """
+        score = candidate.score
 
-        if candidate.score >= self.BUY_SCORE:
+        if score >= 80:
             candidate.decision = "BUY"
             candidate.confidence = 0.90
 
-        elif candidate.score >= self.WATCH_SCORE:
+        elif score >= 60:
             candidate.decision = "WATCH"
-            candidate.confidence = 0.70
+            candidate.confidence = 0.75
 
         else:
             candidate.decision = "HOLD"
             candidate.confidence = 0.50
+
+
 
         return candidate

@@ -5,7 +5,7 @@ engine = MarketEngine(provider)
 
 candles = engine.load_history("RELIANCE.NS")
 
-print(f"Candles Downloaded: {len(candles)}")
+print(f"Validated Candles: {len(candles)}")
 
 if candles:
     print("\nLatest Candle:")

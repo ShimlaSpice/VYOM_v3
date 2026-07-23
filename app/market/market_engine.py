@@ -5,6 +5,8 @@ Market Engine for VYOM.
 from __future__ import annotations
 
 from app.market import MarketDataProvider
+from app.market.validator import MarketDataValidator
+
 
 
 class MarketEngine:
@@ -25,11 +27,12 @@ class MarketEngine:
         Load historical candle data.
         """
 
-        return self.provider.get_candles(
+        candles =  self.provider.get_candles(
             symbol=symbol,
             interval=interval,
             limit=limit,
         )
+        return MarketDataValidator.validate_candles(candles)
 
     def load_quote(
         self,

@@ -23,7 +23,8 @@ class WatchlistLoader:
         path = self.base_path / filename
 
         if not path.exists():
-            return []
+            raise FileNotFoundError(f"Watchlist file not found: {path}")
+            
 
         with open(path, "r", encoding="utf-8") as file:
             return [
