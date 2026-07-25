@@ -12,134 +12,255 @@ from app.scanner.models import ScanCandidate, ScanResult
 from app.scanner.technical_indicators import TechnicalIndicators
 from app.scanner.scorecard import ScoreCard
 from app.scanner.relative_strength import RelativeStrength
+from app.universe.universe_engine import UniverseEngine
 
 
 class ScannerEngine:
-    """
-    Scans all available symbols and ranks opportunities.
-    """
 
-    def __init__(self, provider: MarketDataProvider):
+    def __init__(
+
+        self,
+
+        provider: MarketDataProvider,
+
+    ):
+
         self.provider = provider
+
         self.decision_engine = DecisionEngine()
+
         self.ranking_engine = RankingEngine()
+
         self.ai_analyst = AIAnalyst()
 
-    def scan(self) -> ScanResult:
+    def scan(
 
-        result = ScanResult(generated_at="")
+        self,
 
-        symbols = self.provider.get_watchlist()
+    ) -> ScanResult:
+
+        result = ScanResult(
+
+            generated_at="",
+
+        )
+        universe = UniverseEngine()
+
+        symbols = universe.get_universe(
+            "Nifty50",
+        )
+
+        self.provider.prefetch(
+            symbols,
+
+            period="3mo",
+
+            interval="1d",
+            
+        )
 
         for symbol in symbols:
 
             candles = self.provider.get_candles(
+
                 symbol=symbol,
+
                 interval="1d",
-                limit=50,
+
+                limit=100,
+
             )
 
-            if not candles:
+            if len(candles) < 50:
+
                 continue
 
             closes = [c["close"] for c in candles]
             highs = [c["high"] for c in candles]
+            lows = [c["low"] for c in candles]
             volumes = [c["volume"] for c in candles]
 
-            # -----------------------------
-            # Technical Indicators
-            # -----------------------------
-            sma20 = TechnicalIndicators.sma(closes, 20)
-            ema20 = TechnicalIndicators.ema(closes, 20)
-            rsi = TechnicalIndicators.rsi(closes)
-            macd, signal = TechnicalIndicators.macd(closes)
+            sma20 = TechnicalIndicators.sma(
+                closes,
+                20,
+            )
 
-            avg_volume = TechnicalIndicators.average_volume(volumes)
+            sma50 = TechnicalIndicators.sma(
+                closes,
+                50,
+            )
 
-            is_breakout = TechnicalIndicators.breakout(
+            ema20 = TechnicalIndicators.ema(
+                closes,
+                20,
+            )
+
+            rsi = TechnicalIndicators.rsi(
+                closes,
+            )
+
+            macd, signal = TechnicalIndicators.macd(
+                closes,
+            )
+
+            avg_volume = TechnicalIndicators.average_volume(
+                volumes,
+            )
+
+            breakout = TechnicalIndicators.breakout(
                 highs,
                 closes[-1],
             )
 
-            # -----------------------------
-            # Relative Strength
-            # -----------------------------
             stock_change = TechnicalIndicators.price_change(
+
                 closes[-1],
+
                 closes[-2],
+
             )
 
-            # Temporary
             market_change = 0.0
 
             relative_strength = RelativeStrength.calculate(
+
                 stock_change,
+
                 market_change,
+
             )
 
-            # -----------------------------
-            # Score Card
-            # -----------------------------
             scorecard = ScoreCard()
 
             scorecard.add(
-                "sma",
+
+                "sma20",
+
                 closes[-1] > sma20,
+
                 "Price above SMA20",
+
             )
 
             scorecard.add(
-                "ema",
+
+                "sma50",
+
+                closes[-1] > sma50,
+
+                "Price above SMA50",
+
+            )
+
+            scorecard.add(
+
+                "ema20",
+
                 closes[-1] > ema20,
+
                 "Price above EMA20",
+
             )
 
             scorecard.add(
+
                 "rsi",
+
                 45 <= rsi <= 65,
+
                 f"Healthy RSI ({rsi:.2f})",
+
             )
 
             scorecard.add(
+
                 "macd",
-                macd > 0,
-                f"MACD Positive ({macd:.2f})",
+
+                macd > signal,
+
+                f"Bullish MACD ({macd:.2f})",
+
             )
 
             scorecard.add(
+
                 "volume",
+
                 volumes[-1] > avg_volume * 1.5,
-                f"Volume Spike ({volumes[-1]:,})",
+
+                "Volume Spike",
+
             )
 
             scorecard.add(
+
                 "breakout",
-                is_breakout,
+
+                breakout,
+
                 "20-Day Breakout",
+
             )
 
             scorecard.add(
-                "momentum",
-                relative_strength > 1.0,
-                f"Relative Strength ({relative_strength:.2f}%)",
+
+                "relative_strength",
+
+                relative_strength > 1,
+
+                f"Relative Strength ({relative_strength:.2f})",
+
             )
 
-            # -----------------------------
-            # Candidate
-            # -----------------------------
             candidate = ScanCandidate(
+
                 symbol=symbol,
+
                 score=scorecard.total,
+
                 reasons=list(scorecard.reasons),
+
+                price=closes[-1],
+
+                volume=volumes[-1],
+
+                rsi=rsi,
+
+                macd=macd,
+
+                sma20=sma20,
+
+                sma50=sma50,
+
+                ema20=ema20,
+
+                relative_strength=relative_strength,
+                
+
             )
 
-            candidate = self.decision_engine.evaluate(candidate)
-            candidate = self.ai_analyst.analyze(candidate)
+            candidate = self.decision_engine.evaluate(
 
-            result.candidates.append(candidate)
+                candidate,
+
+            )
+
+            candidate = self.ai_analyst.analyze(
+
+                candidate,
+
+            )
+
+            result.candidates.append(
+
+                candidate,
+
+            )
 
         result.candidates = self.ranking_engine.rank(
-            result.candidates
+
+            result.candidates,
+
         )
 
         return result

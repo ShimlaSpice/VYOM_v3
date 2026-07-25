@@ -33,6 +33,12 @@ class RecommendationPipeline:
 
         self.recommendation = RecommendationEngineV2()
 
+        self.market_trend = MarketTrendEngine()
+
+        self.news_sentiment = NewsSentimentEngine()
+
+        self.setup_generator = SetupGenerator()
+
     def build(
 
         self,
@@ -54,9 +60,9 @@ class RecommendationPipeline:
         lows = [c["low"] for c in candles]
         volumes = [c["volume"] for c in candles]
 
-        # -----------------------------------------------------
-        # ATR
-        # -----------------------------------------------------
+        candidate.price = closes[-1]
+
+        candidate.volume = volumes[-1]
 
         atr = self.atr_engine.summary(
 
@@ -68,19 +74,24 @@ class RecommendationPipeline:
 
         )
 
-        # -----------------------------------------------------
-        # Trade Classification
-        # -----------------------------------------------------
+        candidate.atr = atr["atr"]
 
-        market_trend = MarketTrendEngine().evaluate(
-            closes
+        market_trend = self.market_trend.evaluate(
+
+            closes,
+
         )
 
-        news_analysis = NewsSentimentEngine().evaluate(
+        news_analysis = self.news_sentiment.evaluate(
+
             news.get(
+
                 "headlines",
+
                 [],
+
             )
+
         )
 
         trade = self.trade_classifier.classify(
@@ -95,11 +106,7 @@ class RecommendationPipeline:
 
         )
 
-        # -----------------------------------------------------
-        # Trade Setup
-        # -----------------------------------------------------
-
-        setup = SetupGenerator().generate(
+        setup = self.setup_generator.generate(
 
             highs,
 
@@ -111,53 +118,47 @@ class RecommendationPipeline:
 
         )
 
-        # -----------------------------------------------------
-        # Intelligence
-        # -----------------------------------------------------
-
         intelligence = self.intelligence.analyze(
 
             technical_input={
 
                 "score": candidate.score,
 
-                "rsi": fundamentals.get("rsi", 50),
+                "rsi": candidate.rsi,
 
-                "macd": fundamentals.get("macd", 0),
+                "macd": candidate.macd,
 
-                "sma": True,
+                "sma": closes[-1] > candidate.sma20,
 
-                "ema": True,
+                "ema": closes[-1] > candidate.ema20,
 
-                "breakout": False,
+                "breakout": closes[-1] >= max(highs[-20:]),
 
-                "volume": False,
+                "volume": candidate.volume > (
+                    sum(volumes[-20:]) / min(20, len(volumes))
+                ) * 1.5,
 
             },
 
             fundamental_input={
 
-                "pe": fundamentals.get("pe", 25),
+                "pe": fundamentals.get("pe"),
 
-                "eps": fundamentals.get("eps", 10),
+                "eps": fundamentals.get("eps"),
 
-                "roe": fundamentals.get("roe", 15),
+                "roe": fundamentals.get("roe"),
 
-                "debt_to_equity":
-                    fundamentals.get(
-                        "debt_to_equity",
-                        50,
-                    ),
+                "debt_to_equity": fundamentals.get(
+                    "debt_to_equity"
+                ),
 
-                "market_cap":
-                    fundamentals.get(
-                        "market_cap",
-                        0,
-                    ),
+                "market_cap": fundamentals.get(
+                    "market_cap"
+                ),
 
             },
 
-            news_input = {
+            news_input={
 
                 "sentiment": news_analysis["sentiment"],
 
@@ -167,28 +168,27 @@ class RecommendationPipeline:
 
             },
 
-            risk_input={
+            sector_input={
 
-                "atr_percent":
-                    atr["atr_percent"],
-
-                "volatility":
-                    atr["volatility"],
-
-                "risk_reward":
-                    setup["risk_reward"],
+                "sector": sector,
 
             },
 
-            relative_strength=8,
+            risk_input={
 
-            market_score=8,
+                "atr_percent": atr["atr_percent"],
+
+                "volatility": atr["volatility"],
+
+                "risk_reward": setup["risk_reward"],
+
+            },
+
+            relative_strength=candidate.relative_strength,
+
+            market_score=market_trend["score"],
 
         )
-
-        # -----------------------------------------------------
-        # Recommendation
-        # -----------------------------------------------------
 
         recommendation = self.recommendation.generate(
 

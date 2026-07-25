@@ -45,17 +45,33 @@ class RecommendationEngineV2:
 
         confidence_score = confidence["confidence"]
 
-        # -------------------------------------------------
+        category = trade_type["category"]
 
-        if confidence_score >= 90:
+        if category == "POSITIONAL":
 
-            recommendation = "STRONG BUY"
+            recommendation = (
+                "STRONG BUY"
+                if confidence_score >= 90
+                else "BUY"
+            )
 
-        elif confidence_score >= 80:
+        elif category == "SWING":
 
-            recommendation = "BUY"
+            recommendation = (
+                "BUY"
+                if confidence_score >= 75
+                else "WATCH"
+            )
 
-        elif confidence_score >= 70:
+        elif category == "INTRADAY":
+
+            recommendation = (
+                "BUY"
+                if confidence_score >= 70
+                else "WATCH"
+            )
+
+        elif category == "WATCH":
 
             recommendation = "WATCH"
 
@@ -63,27 +79,19 @@ class RecommendationEngineV2:
 
             recommendation = "AVOID"
 
-        # -------------------------------------------------
-
         scores = {
 
-            "technical":
-                technical["score"],
+            "technical": technical["score"],
 
-            "fundamental":
-                fundamental["score"],
+            "fundamental": fundamental["score"],
 
-            "news":
-                news["score"],
+            "news": news["score"],
 
-            "sector":
-                sector["score"],
+            "sector": sector["score"],
 
-            "risk":
-                risk["score"],
+            "risk": risk["score"],
 
-            "confidence":
-                confidence_score,
+            "confidence": confidence_score,
 
         }
 
@@ -93,7 +101,7 @@ class RecommendationEngineV2:
 
             recommendation=recommendation,
 
-            category=trade_type["category"],
+            category=category,
 
             confidence=confidence_score,
 

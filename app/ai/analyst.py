@@ -8,32 +8,102 @@ from app.scanner.models import ScanCandidate
 
 
 class AIAnalyst:
-    """
-    Generates human-readable trading insights.
-    """
 
-    def analyze(self, candidate: ScanCandidate) -> ScanCandidate:
+    def analyze(
 
-        # Preserve ScoreCard reasons
-        reasons = list(candidate.reasons)
+        self,
 
-        if candidate.score >= 80:
-            reasons.append("Strong technical setup detected.")
+        candidate: ScanCandidate,
 
-        elif candidate.score >= 60:
-            reasons.append("Momentum is improving.")
+    ) -> ScanCandidate:
+
+        reasons = list(
+
+            candidate.reasons
+
+        )
+
+        score = candidate.score
+
+        decision = candidate.decision
+
+        if score >= 90:
+
+            reasons.append(
+
+                "Exceptional technical structure."
+
+            )
+
+        elif score >= 80:
+
+            reasons.append(
+
+                "Strong technical setup."
+
+            )
+
+        elif score >= 65:
+
+            reasons.append(
+
+                "Momentum building."
+
+            )
+
+        elif score >= 50:
+
+            reasons.append(
+
+                "Early signs of strength."
+
+            )
 
         else:
-            reasons.append("Score below BUY threshold.")
 
-        if candidate.decision == "BUY":
-            reasons.append("BUY signal confirmed.")
+            reasons.append(
 
-        elif candidate.decision == "WATCH":
-            reasons.append("Watch for confirmation.")
+                "Weak technical setup."
+
+            )
+
+        if decision == "STRONG BUY":
+
+            reasons.append(
+
+                "High probability trade."
+
+            )
+
+            reasons.append(
+
+                "Multiple bullish confirmations."
+
+            )
+
+        elif decision == "BUY":
+
+            reasons.append(
+
+                "BUY signal confirmed."
+
+            )
+
+        elif decision == "WATCH":
+
+            reasons.append(
+
+                "Wait for breakout confirmation."
+
+            )
 
         else:
-            reasons.append("Capital preservation preferred.")
+
+            reasons.append(
+
+                "Avoid until structure improves."
+
+            )
 
         candidate.reasons = reasons
 

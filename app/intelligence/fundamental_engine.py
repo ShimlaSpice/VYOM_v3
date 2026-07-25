@@ -8,86 +8,173 @@ from __future__ import annotations
 class FundamentalEngine:
 
     def evaluate(
-        self,
-        pe: float,
-        eps: float,
-        roe: float | None,
-        debt_to_equity: float | None,
-        market_cap: int,
-    ) -> dict:
 
-        reasons = []
+        self,
+
+        pe: float | None,
+
+        eps: float | None,
+
+        roe: float | None,
+
+        debt_to_equity: float | None,
+
+        market_cap: int | None,
+
+    ) -> dict:
 
         score = 0
 
-        # -------------------------------------
-        # PE Ratio
-        # -------------------------------------
+        reasons = []
 
-        if 0 < pe <= 25:
+        pe = pe or 0
+        eps = eps or 0
+        roe = roe or 0
+        debt_to_equity = debt_to_equity or 0
+        market_cap = market_cap or 0
+
+        # ----------------------------------
+        # PE
+        # ----------------------------------
+
+        if 0 < pe <= 20:
 
             score += 5
+
+            reasons.append(
+                f"Excellent PE ({pe:.2f})"
+            )
+
+        elif pe <= 30:
+
+            score += 4
 
             reasons.append(
                 f"Healthy PE ({pe:.2f})"
             )
 
-        # -------------------------------------
-        # EPS
-        # -------------------------------------
+        elif pe > 30:
 
-        if eps > 0:
+            score += 2
+
+            reasons.append(
+                f"High PE ({pe:.2f})"
+            )
+
+        # ----------------------------------
+        # EPS
+        # ----------------------------------
+
+        if eps > 50:
 
             score += 5
+
+            reasons.append(
+                f"Strong EPS ({eps:.2f})"
+            )
+
+        elif eps > 0:
+
+            score += 3
 
             reasons.append(
                 f"Positive EPS ({eps:.2f})"
             )
 
-        # -------------------------------------
+        else:
+
+            reasons.append(
+                "Negative EPS"
+            )
+
+        # ----------------------------------
         # ROE
-        # -------------------------------------
+        # ----------------------------------
 
-        if roe is not None:
+        if roe < 1:
 
-            roe_percent = roe * 100 if roe < 1 else roe
+            roe = roe * 100
 
-            if roe_percent >= 15:
+        if roe >= 20:
 
-                score += 5
+            score += 5
 
-                reasons.append(
-                    f"Strong ROE ({roe_percent:.2f}%)"
-                )
+            reasons.append(
+                f"Excellent ROE ({roe:.2f}%)"
+            )
 
-        # -------------------------------------
-        # Debt
-        # -------------------------------------
+        elif roe >= 15:
 
-        if debt_to_equity is not None:
+            score += 4
 
-            if debt_to_equity <= 100:
+            reasons.append(
+                f"Healthy ROE ({roe:.2f}%)"
+            )
 
-                score += 3
-
-                reasons.append(
-                    "Healthy Debt Level"
-                )
-
-        # -------------------------------------
-        # Market Cap
-        # -------------------------------------
-
-        if market_cap >= 100_000_000_000:
+        elif roe >= 10:
 
             score += 2
+
+            reasons.append(
+                f"Average ROE ({roe:.2f}%)"
+            )
+
+        # ----------------------------------
+        # Debt
+        # ----------------------------------
+
+        if debt_to_equity == 0:
+
+            reasons.append(
+                "Debt data unavailable"
+            )
+
+        elif debt_to_equity <= 50:
+
+            score += 3
+
+            reasons.append(
+                "Low Debt"
+            )
+
+        elif debt_to_equity <= 100:
+
+            score += 2
+
+            reasons.append(
+                "Acceptable Debt"
+            )
+
+        else:
+
+            reasons.append(
+                "High Debt"
+            )
+
+        # ----------------------------------
+        # Market Cap
+        # ----------------------------------
+
+        if market_cap >= 1_000_000_000_000:
+
+            score += 2
+
+            reasons.append(
+                "Mega Cap Company"
+            )
+
+        elif market_cap >= 100_000_000_000:
+
+            score += 1
 
             reasons.append(
                 "Large Cap Company"
             )
 
         confidence = round(
+
             (score / 20) * 100
+
         )
 
         return {

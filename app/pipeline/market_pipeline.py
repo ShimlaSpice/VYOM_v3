@@ -11,6 +11,7 @@ Top 10 Engine
 from __future__ import annotations
 
 from app.market import YahooFinanceProvider
+from app.news.news_engine import NewsEngine
 from app.scanner.scanner import ScannerEngine
 from app.pipeline.recommendation_pipeline import (
     RecommendationPipeline,
@@ -23,6 +24,8 @@ class MarketPipeline:
     def __init__(self):
 
         self.provider = YahooFinanceProvider()
+
+        self.news_engine = NewsEngine()
 
         self.scanner = ScannerEngine(
             self.provider,
@@ -54,52 +57,26 @@ class MarketPipeline:
 
                 continue
 
-            # --------------------------------------------------
-            # Temporary placeholders
-            # Replace with real engines later
-            # --------------------------------------------------
+            fundamentals = self.provider.get_fundamentals(
+                candidate.symbol,
+            )
 
-            fundamentals = {
+            if not fundamentals:
 
-                "pe": 22,
+                fundamentals = {}
 
-                "eps": 65,
+            news = self.news_engine.analyze(
+                candidate.symbol,
+                limit=5,
+            )
 
-                "roe": 18,
+            sector = fundamentals.get(
 
-                "debt_to_equity": 45,
+                "sector",
 
-                "market_cap": 1800000000000,
+                "Unknown",
 
-            }
-
-            news = {
-
-                "sentiment": "POSITIVE",
-
-                "confidence": 0.90,
-
-                "headlines": [
-
-                    {
-
-                        "title":
-                        "Positive Quarterly Results"
-
-                    },
-
-                    {
-
-                        "title":
-                        "Broker Upgrade"
-
-                    },
-
-                ],
-
-            }
-
-            sector = "Financial Services"
+            )
 
             recommendation = self.pipeline.build(
 
@@ -114,14 +91,6 @@ class MarketPipeline:
                 sector=sector,
 
             )
-            print(
-                recommendation.symbol,
-                recommendation.entry,
-                recommendation.stop_loss,
-                recommendation.target1,
-                recommendation.target2,
-            )
-
 
             recommendations.append(
                 recommendation

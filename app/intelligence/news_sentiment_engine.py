@@ -12,18 +12,26 @@ class NewsSentimentEngine:
     POSITIVE = {
 
         "profit",
+        "profits",
         "growth",
         "record",
         "strong",
         "surge",
         "gain",
+        "gains",
         "buy",
         "bullish",
         "expansion",
         "contract",
+        "contracts",
         "upgrade",
+        "upgrades",
         "beat",
-        "highest",
+        "beats",
+        "approval",
+        "launch",
+        "orders",
+        "order",
         "positive",
 
     }
@@ -31,17 +39,23 @@ class NewsSentimentEngine:
     NEGATIVE = {
 
         "loss",
+        "losses",
         "fall",
+        "falls",
         "decline",
+        "drop",
+        "crash",
         "downgrade",
+        "downgrades",
         "weak",
         "fraud",
-        "crash",
-        "drop",
-        "bearish",
         "penalty",
         "investigation",
+        "probe",
+        "default",
         "miss",
+        "misses",
+        "bearish",
         "negative",
 
     }
@@ -63,38 +77,65 @@ class NewsSentimentEngine:
         for headline in headlines:
 
             text = headline.get(
+
                 "title",
+
                 "",
+
             ).lower()
 
-            for word in self.POSITIVE:
+            positive += sum(
 
-                if word in text:
+                word in text
 
-                    positive += 1
+                for word in self.POSITIVE
 
-            for word in self.NEGATIVE:
+            )
 
-                if word in text:
+            negative += sum(
 
-                    negative += 1
+                word in text
 
-        if positive > negative:
+                for word in self.NEGATIVE
+
+            )
+
+        score = positive - negative
+
+        if score >= 3:
+
+            sentiment = "VERY_POSITIVE"
+
+            confidence = 0.95
+
+        elif score > 0:
 
             sentiment = "POSITIVE"
 
             confidence = min(
-                0.95,
-                0.60 + (positive * 0.05),
+
+                0.90,
+
+                0.65 + score * 0.05,
+
             )
 
-        elif negative > positive:
+        elif score <= -3:
+
+            sentiment = "VERY_NEGATIVE"
+
+            confidence = 0.95
+
+        elif score < 0:
 
             sentiment = "NEGATIVE"
 
             confidence = min(
-                0.95,
-                0.60 + (negative * 0.05),
+
+                0.90,
+
+                0.65 + abs(score) * 0.05,
+
             )
 
         else:
@@ -105,13 +146,19 @@ class NewsSentimentEngine:
 
         reasons.append(
 
-            f"{positive} Positive Keywords"
+            f"Positive keywords: {positive}"
 
         )
 
         reasons.append(
 
-            f"{negative} Negative Keywords"
+            f"Negative keywords: {negative}"
+
+        )
+
+        reasons.append(
+
+            f"Headline score: {score}"
 
         )
 
@@ -120,9 +167,14 @@ class NewsSentimentEngine:
             "sentiment": sentiment,
 
             "confidence": round(
+
                 confidence,
+
                 2,
+
             ),
+
+            "score": score,
 
             "headlines": headlines,
 

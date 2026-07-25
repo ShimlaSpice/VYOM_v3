@@ -10,15 +10,41 @@ from typing import Any
 
 @dataclass(slots=True)
 class ScanCandidate:
+
     symbol: str
+
     score: float = 0.0
+
     decision: str = "HOLD"
+
     confidence: float = 0.0
+
     reasons: list[str] = field(default_factory=list)
+
     indicators: dict[str, Any] = field(default_factory=dict)
+
+    price: float = 0.0
+
+    volume: int = 0
+
+    rsi: float = 0.0
+
+    macd: float = 0.0
+
+    sma20: float = 0.0
+
+    sma50: float = 0.0
+
+    ema20: float = 0.0
+
+    atr: float = 0.0
+
+    relative_strength: float = 0.0
 
 
 @dataclass(slots=True)
 class ScanResult:
+
     generated_at: str
+
     candidates: list[ScanCandidate] = field(default_factory=list)
