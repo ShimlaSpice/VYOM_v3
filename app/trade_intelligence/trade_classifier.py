@@ -1,12 +1,5 @@
 """
 Trade Classifier for VYOM.
-
-Classifies every stock as:
-
-- INTRADAY
-- SWING
-- POSITIONAL
-- AVOID
 """
 
 from __future__ import annotations
@@ -15,27 +8,39 @@ from __future__ import annotations
 class TradeClassifier:
 
     def classify(
-        self,
-        score: int,
-        atr_percent: float,
-        trend: str,
-        sentiment: str,
-    ) -> dict:
 
-        reasons: list[str] = []
+        self,
+
+        score: int,
+
+        atr_percent: float,
+
+        trend: str,
+
+        sentiment: str,
+
+    ) -> dict:
 
         category = "AVOID"
 
         confidence = 40
 
-        # --------------------------------------------------
-        # POSITIONAL
-        # --------------------------------------------------
+        reasons: list[str] = []
 
         if (
+
             score >= 80
+
             and trend == "BULLISH"
-            and sentiment == "POSITIVE"
+
+            and sentiment in (
+
+                "POSITIVE",
+
+                "VERY_POSITIVE",
+
+            )
+
         ):
 
             category = "POSITIONAL"
@@ -43,21 +48,27 @@ class TradeClassifier:
             confidence = 95
 
             reasons.extend(
+
                 [
-                    "Strong technical score.",
+
+                    "Excellent technical structure.",
+
                     "Bullish market trend.",
+
                     "Positive news sentiment.",
-                    "Suitable for long-term holding.",
+
+                    "Suitable for positional trading.",
+
                 ]
+
             )
 
-        # --------------------------------------------------
-        # SWING
-        # --------------------------------------------------
-
         elif (
-            score >= 60
+
+            score >= 65
+
             and trend == "BULLISH"
+
         ):
 
             category = "SWING"
@@ -65,20 +76,25 @@ class TradeClassifier:
             confidence = 85
 
             reasons.extend(
+
                 [
-                    "Bullish trend detected.",
-                    "Good technical strength.",
-                    "Swing opportunity available.",
+
+                    "Strong bullish trend.",
+
+                    "Good momentum.",
+
+                    "Swing opportunity detected.",
+
                 ]
+
             )
 
-        # --------------------------------------------------
-        # INTRADAY
-        # --------------------------------------------------
-
         elif (
+
             score >= 45
-            and atr_percent >= 1.5
+
+            and atr_percent >= 1.0
+
         ):
 
             category = "INTRADAY"
@@ -86,15 +102,16 @@ class TradeClassifier:
             confidence = 75
 
             reasons.extend(
-                [
-                    "High daily movement.",
-                    "Enough volatility for intraday.",
-                ]
-            )
 
-        # --------------------------------------------------
-        # WATCHLIST
-        # --------------------------------------------------
+                [
+
+                    "Good intraday volatility.",
+
+                    "Suitable for short-term trade.",
+
+                ]
+
+            )
 
         elif score >= 30:
 
@@ -103,27 +120,33 @@ class TradeClassifier:
             confidence = 60
 
             reasons.extend(
-                [
-                    "Keep under observation.",
-                    "Needs confirmation.",
-                ]
-            )
 
-        # --------------------------------------------------
-        # AVOID
-        # --------------------------------------------------
+                [
+
+                    "Needs confirmation.",
+
+                    "Keep on watchlist.",
+
+                ]
+
+            )
 
         else:
 
             category = "AVOID"
 
-            confidence = 40
+            confidence = 35
 
             reasons.extend(
+
                 [
-                    "Weak technical structure.",
-                    "Low probability setup.",
+
+                    "Weak technical setup.",
+
+                    "Low probability trade.",
+
                 ]
+
             )
 
         return {

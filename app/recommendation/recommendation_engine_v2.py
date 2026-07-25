@@ -1,7 +1,5 @@
 """
 Recommendation Engine V2.
-
-Combines all intelligence engines into one final recommendation.
 """
 
 from __future__ import annotations
@@ -37,11 +35,47 @@ class RecommendationEngineV2:
 
         reasons = []
 
-        reasons.extend(technical["reasons"])
-        reasons.extend(fundamental["reasons"])
-        reasons.extend(news["reasons"])
-        reasons.extend(sector["reasons"])
-        reasons.extend(risk["reasons"])
+        reasons.extend(
+
+            technical["reasons"]
+
+        )
+
+        reasons.extend(
+
+            fundamental["reasons"]
+
+        )
+
+        reasons.extend(
+
+            news["reasons"]
+
+        )
+
+        reasons.extend(
+
+            sector["reasons"]
+
+        )
+
+        reasons.extend(
+
+            risk["reasons"]
+
+        )
+
+        reasons.extend(
+
+            trade_type.get(
+
+                "reasons",
+
+                [],
+
+            )
+
+        )
 
         confidence_score = confidence["confidence"]
 
@@ -49,27 +83,15 @@ class RecommendationEngineV2:
 
         if category == "POSITIONAL":
 
-            recommendation = (
-                "STRONG BUY"
-                if confidence_score >= 90
-                else "BUY"
-            )
+            recommendation = "STRONG BUY"
 
         elif category == "SWING":
 
-            recommendation = (
-                "BUY"
-                if confidence_score >= 75
-                else "WATCH"
-            )
+            recommendation = "BUY"
 
         elif category == "INTRADAY":
 
-            recommendation = (
-                "BUY"
-                if confidence_score >= 70
-                else "WATCH"
-            )
+            recommendation = "BUY"
 
         elif category == "WATCH":
 

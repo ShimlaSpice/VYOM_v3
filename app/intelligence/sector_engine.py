@@ -7,57 +7,59 @@ from __future__ import annotations
 
 class SectorEngine:
 
-    SCORES = {
+    MAX_SCORE = 10
 
-        "Financial Services": 10,
+    STRONG_SECTORS = {
 
-        "Banking": 10,
+        "BANKING",
 
-        "Technology": 10,
+        "FINANCIAL SERVICES",
 
-        "Information Technology": 10,
+        "TECHNOLOGY",
 
-        "Energy": 9,
+        "INFORMATION TECHNOLOGY",
 
-        "Oil & Gas": 9,
+        "ENERGY",
 
-        "Capital Goods": 9,
+        "HEALTHCARE",
 
-        "Automobile": 8,
+        "PHARMACEUTICALS",
 
-        "Healthcare": 8,
+        "CAPITAL GOODS",
 
-        "Pharmaceuticals": 8,
+        "AUTOMOBILE",
 
-        "FMCG": 8,
+        "AUTO",
 
-        "Consumer Defensive": 8,
+        "FMCG",
 
-        "Consumer Cyclical": 7,
+    }
 
-        "Telecommunication": 7,
+    GOOD_SECTORS = {
 
-        "Telecom": 7,
+        "CHEMICALS",
 
-        "Infrastructure": 7,
+        "INFRASTRUCTURE",
 
-        "Chemicals": 7,
+        "CONSUMER GOODS",
 
-        "Metals": 6,
+        "CEMENT",
 
-        "Mining": 6,
+        "METALS",
 
-        "Power": 6,
+        "POWER",
 
-        "Utilities": 6,
+        "TELECOM",
 
-        "Construction": 5,
+    }
 
-        "Real Estate": 3,
+    WEAK_SECTORS = {
 
-        "Media": 2,
+        "REAL ESTATE",
 
-        "Textile": 2,
+        "MEDIA",
+
+        "TEXTILE",
 
     }
 
@@ -69,19 +71,21 @@ class SectorEngine:
 
     ) -> dict:
 
-        sector = (sector or "Unknown").strip()
+        sector = (
 
-        score = self.SCORES.get(
+            sector or "UNKNOWN"
 
-            sector,
+        ).strip()
 
-            5,
+        sector_upper = sector.upper()
 
-        )
+        score = 5
 
         reasons = []
 
-        if score >= 9:
+        if sector_upper in self.STRONG_SECTORS:
+
+            score = 10
 
             reasons.append(
 
@@ -89,7 +93,9 @@ class SectorEngine:
 
             )
 
-        elif score >= 7:
+        elif sector_upper in self.GOOD_SECTORS:
+
+            score = 8
 
             reasons.append(
 
@@ -97,15 +103,9 @@ class SectorEngine:
 
             )
 
-        elif score >= 5:
+        elif sector_upper in self.WEAK_SECTORS:
 
-            reasons.append(
-
-                f"Neutral Sector ({sector})"
-
-            )
-
-        else:
+            score = 2
 
             reasons.append(
 
@@ -113,11 +113,15 @@ class SectorEngine:
 
             )
 
-        confidence = round(
+        else:
 
-            (score / 10) * 100
+            score = 5
 
-        )
+            reasons.append(
+
+                f"Neutral Sector ({sector})"
+
+            )
 
         return {
 
@@ -125,9 +129,13 @@ class SectorEngine:
 
             "score": score,
 
-            "max_score": 10,
+            "max_score": self.MAX_SCORE,
 
-            "confidence": confidence,
+            "confidence": round(
+
+                (score / self.MAX_SCORE) * 100
+
+            ),
 
             "reasons": reasons,
 

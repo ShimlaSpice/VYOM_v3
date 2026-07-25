@@ -1,6 +1,8 @@
 """
 Complete Market Pipeline.
 
+Universe
+    ↓
 Scanner
     ↓
 Recommendation Pipeline
@@ -11,11 +13,10 @@ Top 10 Engine
 from __future__ import annotations
 
 from app.market import YahooFinanceProvider
-from app.news.news_engine import NewsEngine
-from app.scanner.scanner import ScannerEngine
 from app.pipeline.recommendation_pipeline import (
     RecommendationPipeline,
 )
+from app.scanner.scanner import ScannerEngine
 from app.top10 import Top10Engine
 
 
@@ -25,17 +26,21 @@ class MarketPipeline:
 
         self.provider = YahooFinanceProvider()
 
-        self.news_engine = NewsEngine()
-
         self.scanner = ScannerEngine(
+
             self.provider,
+
         )
 
         self.pipeline = RecommendationPipeline()
 
         self.top10 = Top10Engine()
 
-    def run(self):
+    def run(
+
+        self,
+
+    ):
 
         scan_result = self.scanner.scan()
 
@@ -49,26 +54,33 @@ class MarketPipeline:
 
                 interval="1d",
 
-                limit=60,
+                limit=100,
 
             )
 
-            if not candles:
+            if len(candles) < 50:
 
                 continue
 
             fundamentals = self.provider.get_fundamentals(
+
                 candidate.symbol,
+
             )
 
             if not fundamentals:
 
                 fundamentals = {}
 
-            news = self.news_engine.analyze(
-                candidate.symbol,
-                limit=5,
-            )
+            news = {
+
+                "sentiment": "NEUTRAL",
+
+                "confidence": 0.50,
+
+                "headlines": [],
+
+            }
 
             sector = fundamentals.get(
 
@@ -93,9 +105,15 @@ class MarketPipeline:
             )
 
             recommendations.append(
-                recommendation
+
+                recommendation,
+
             )
 
         return self.top10.generate(
-            recommendations
+
+            recommendations,
+
+            limit=10,
+
         )

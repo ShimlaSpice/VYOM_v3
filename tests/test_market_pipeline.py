@@ -1,27 +1,62 @@
+"""
+End-to-End Test for VYOM Market Pipeline.
+"""
+
+from __future__ import annotations
+
 from app.pipeline import MarketPipeline
-from app.recommendation import RecommendationFormatter
+from app.recommendation.recommendation_formatter import (
+    RecommendationFormatter,
+)
 
-pipeline = MarketPipeline()
 
-recommendations = pipeline.run()
+def main():
 
-formatter = RecommendationFormatter()
+    pipeline = MarketPipeline()
 
-print()
+    formatter = RecommendationFormatter()
 
-print("=" * 80)
-print("VYOM DAILY RECOMMENDATIONS")
-print("=" * 80)
-print()
-
-for i, recommendation in enumerate(recommendations, start=1):
-
-    print(f"RANK #{i}")
-
-    print(
-        formatter.format(
-            recommendation
-        )
-    )
+    recommendations = pipeline.run()
 
     print()
+
+    print("=" * 80)
+
+    print("VYOM DAILY RECOMMENDATIONS")
+
+    print("=" * 80)
+
+    if not recommendations:
+
+        print()
+
+        print("No recommendations generated.")
+
+        return
+
+    for rank, recommendation in enumerate(
+
+        recommendations,
+
+        start=1,
+
+    ):
+
+        print()
+
+        print(f"RANK #{rank}")
+
+        print(
+
+            formatter.format(
+
+                recommendation,
+
+            )
+
+        )
+
+
+if __name__ == "__main__":
+
+    main()

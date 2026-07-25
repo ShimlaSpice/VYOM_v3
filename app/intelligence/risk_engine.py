@@ -7,6 +7,8 @@ from __future__ import annotations
 
 class RiskEngine:
 
+    MAX_SCORE = 10
+
     def evaluate(
 
         self,
@@ -23,7 +25,21 @@ class RiskEngine:
 
         reasons = []
 
-        if atr_percent <= 1:
+        volatility = (
+
+            volatility or "UNKNOWN"
+
+        ).upper()
+
+        if atr_percent <= 0:
+
+            reasons.append(
+
+                "ATR unavailable."
+
+            )
+
+        elif atr_percent < 1:
 
             score += 5
 
@@ -33,7 +49,7 @@ class RiskEngine:
 
             )
 
-        elif atr_percent <= 2:
+        elif atr_percent < 2:
 
             score += 4
 
@@ -43,7 +59,7 @@ class RiskEngine:
 
             )
 
-        elif atr_percent <= 3:
+        elif atr_percent < 3:
 
             score += 3
 
@@ -53,7 +69,7 @@ class RiskEngine:
 
             )
 
-        elif atr_percent <= 5:
+        elif atr_percent < 5:
 
             score += 2
 
@@ -93,11 +109,19 @@ class RiskEngine:
 
             )
 
-        else:
+        elif volatility == "HIGH":
 
             reasons.append(
 
                 "High Volatility Environment."
+
+            )
+
+        else:
+
+            reasons.append(
+
+                "Volatility Unknown."
 
             )
 
@@ -153,7 +177,7 @@ class RiskEngine:
 
             score,
 
-            10,
+            self.MAX_SCORE,
 
         )
 
@@ -175,11 +199,11 @@ class RiskEngine:
 
             "score": score,
 
-            "max_score": 10,
+            "max_score": self.MAX_SCORE,
 
             "confidence": round(
 
-                score * 10,
+                (score / self.MAX_SCORE) * 100
 
             ),
 

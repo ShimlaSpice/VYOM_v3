@@ -4,14 +4,19 @@ Scanner Engine for VYOM.
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from app.ai.analyst import AIAnalyst
 from app.market import MarketDataProvider
 from app.scanner.decision_engine import DecisionEngine
+from app.scanner.models import (
+    ScanCandidate,
+    ScanResult,
+)
 from app.scanner.ranking import RankingEngine
-from app.ai.analyst import AIAnalyst
-from app.scanner.models import ScanCandidate, ScanResult
-from app.scanner.technical_indicators import TechnicalIndicators
-from app.scanner.scorecard import ScoreCard
 from app.scanner.relative_strength import RelativeStrength
+from app.scanner.scorecard import ScoreCard
+from app.scanner.technical_indicators import TechnicalIndicators
 from app.universe.universe_engine import UniverseEngine
 
 
@@ -33,6 +38,8 @@ class ScannerEngine:
 
         self.ai_analyst = AIAnalyst()
 
+        self.universe = UniverseEngine()
+
     def scan(
 
         self,
@@ -41,22 +48,24 @@ class ScannerEngine:
 
         result = ScanResult(
 
-            generated_at="",
+            generated_at=datetime.now().isoformat(),
 
         )
-        universe = UniverseEngine()
 
-        symbols = universe.get_universe(
-            "Nifty50",
+        symbols = self.universe.get_universe(
+
+            "NIFTY50",
+
         )
 
         self.provider.prefetch(
+
             symbols,
 
             period="3mo",
 
             interval="1d",
-            
+
         )
 
         for symbol in symbols:
@@ -75,46 +84,95 @@ class ScannerEngine:
 
                 continue
 
-            closes = [c["close"] for c in candles]
-            highs = [c["high"] for c in candles]
-            lows = [c["low"] for c in candles]
-            volumes = [c["volume"] for c in candles]
+            closes = [
+
+                c["close"]
+
+                for c in candles
+
+            ]
+
+            highs = [
+
+                c["high"]
+
+                for c in candles
+
+            ]
+
+            lows = [
+
+                c["low"]
+
+                for c in candles
+
+            ]
+
+            volumes = [
+
+                c["volume"]
+
+                for c in candles
+
+            ]
+
+            latest_price = closes[-1]
+
+            latest_volume = volumes[-1]
 
             sma20 = TechnicalIndicators.sma(
+
                 closes,
+
                 20,
+
             )
 
             sma50 = TechnicalIndicators.sma(
+
                 closes,
+
                 50,
+
             )
 
             ema20 = TechnicalIndicators.ema(
+
                 closes,
+
                 20,
+
             )
 
             rsi = TechnicalIndicators.rsi(
+
                 closes,
+
             )
 
             macd, signal = TechnicalIndicators.macd(
+
                 closes,
+
             )
 
-            avg_volume = TechnicalIndicators.average_volume(
+            average_volume = TechnicalIndicators.average_volume(
+
                 volumes,
+
             )
 
             breakout = TechnicalIndicators.breakout(
+
                 highs,
-                closes[-1],
+
+                latest_price,
+
             )
 
             stock_change = TechnicalIndicators.price_change(
 
-                closes[-1],
+                latest_price,
 
                 closes[-2],
 
@@ -136,7 +194,7 @@ class ScannerEngine:
 
                 "sma20",
 
-                closes[-1] > sma20,
+                latest_price > sma20,
 
                 "Price above SMA20",
 
@@ -146,7 +204,7 @@ class ScannerEngine:
 
                 "sma50",
 
-                closes[-1] > sma50,
+                latest_price > sma50,
 
                 "Price above SMA50",
 
@@ -156,7 +214,7 @@ class ScannerEngine:
 
                 "ema20",
 
-                closes[-1] > ema20,
+                latest_price > ema20,
 
                 "Price above EMA20",
 
@@ -178,7 +236,7 @@ class ScannerEngine:
 
                 macd > signal,
 
-                f"Bullish MACD ({macd:.2f})",
+                f"Positive MACD ({macd:.2f})",
 
             )
 
@@ -186,7 +244,7 @@ class ScannerEngine:
 
                 "volume",
 
-                volumes[-1] > avg_volume * 1.5,
+                latest_volume > average_volume * 1.5,
 
                 "Volume Spike",
 
@@ -218,11 +276,15 @@ class ScannerEngine:
 
                 score=scorecard.total,
 
-                reasons=list(scorecard.reasons),
+                reasons=list(
 
-                price=closes[-1],
+                    scorecard.reasons,
 
-                volume=volumes[-1],
+                ),
+
+                price=latest_price,
+
+                volume=latest_volume,
 
                 rsi=rsi,
 
@@ -235,7 +297,6 @@ class ScannerEngine:
                 ema20=ema20,
 
                 relative_strength=relative_strength,
-                
 
             )
 

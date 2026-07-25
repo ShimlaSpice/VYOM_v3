@@ -2,111 +2,221 @@
 ATR Engine for VYOM.
 
 Calculates:
-- True Range (TR)
-- Average True Range (ATR)
-- Volatility Classification
+- True Range
+- Average True Range
+- ATR %
+- Volatility
 """
 
 from __future__ import annotations
 
-from statistics import mean
+import math
 
 
 class ATREngine:
-    """
-    Average True Range Engine.
-    """
 
     def calculate(
+
         self,
+
         highs: list[float],
+
         lows: list[float],
+
         closes: list[float],
+
         period: int = 14,
+
     ) -> float:
-        """
-        Calculate ATR using Wilder's True Range.
-        """
 
         if (
+
             len(highs) < period + 1
+
             or len(lows) < period + 1
+
             or len(closes) < period + 1
+
         ):
+
             return 0.0
 
-        true_ranges: list[float] = []
+        true_ranges = []
 
         for i in range(1, len(closes)):
 
-            high = highs[i]
-            low = lows[i]
-            previous_close = closes[i - 1]
+            try:
+
+                high = float(highs[i])
+
+                low = float(lows[i])
+
+                previous_close = float(closes[i - 1])
+
+            except Exception:
+
+                continue
+
+            if any(
+
+                math.isnan(x)
+
+                for x in [
+
+                    high,
+
+                    low,
+
+                    previous_close,
+
+                ]
+
+            ):
+
+                continue
 
             tr = max(
+
                 high - low,
+
                 abs(high - previous_close),
+
                 abs(low - previous_close),
+
             )
 
-            true_ranges.append(tr)
+            true_ranges.append(
+
+                tr,
+
+            )
+
+        if len(true_ranges) < period:
+
+            return 0.0
+
+        atr = sum(
+
+            true_ranges[-period:]
+
+        ) / period
+
+        if math.isnan(atr):
+
+            return 0.0
 
         return round(
-            mean(true_ranges[-period:]),
+
+            atr,
+
             2,
+
         )
 
     def volatility(
-        self,
-        atr: float,
-        price: float,
-    ) -> str:
-        """
-        Classify stock volatility.
-        """
 
-        if price <= 0:
+        self,
+
+        atr: float,
+
+        price: float,
+
+    ) -> str:
+
+        if (
+
+            price <= 0
+
+            or atr <= 0
+
+        ):
+
             return "UNKNOWN"
 
-        percentage = (atr / price) * 100
+        atr_percent = (
 
-        if percentage < 1:
+            atr / price
+
+        ) * 100
+
+        if atr_percent < 1:
+
             return "LOW"
 
-        if percentage < 2.5:
+        if atr_percent < 2.5:
+
             return "MEDIUM"
 
         return "HIGH"
 
     def summary(
+
         self,
+
         highs: list[float],
+
         lows: list[float],
+
         closes: list[float],
+
         period: int = 14,
+
     ) -> dict:
-        """
-        Complete ATR Analysis.
-        """
 
         atr = self.calculate(
+
             highs,
+
             lows,
+
             closes,
+
             period,
+
         )
 
-        price = closes[-1]
+        price = closes[-1] if closes else 0.0
+
+        if (
+
+            price <= 0
+
+            or math.isnan(price)
+
+        ):
+
+            atr_percent = 0.0
+
+        else:
+
+            atr_percent = round(
+
+                (atr / price) * 100,
+
+                2,
+
+            )
 
         return {
+
             "atr": atr,
-            "price": round(price, 2),
-            "atr_percent": round(
-                (atr / price) * 100,
-                2,
-            ) if price else 0.0,
-            "volatility": self.volatility(
-                atr,
+
+            "price": round(
+
                 price,
+
+                2,
+
             ),
+
+            "atr_percent": atr_percent,
+
+            "volatility": self.volatility(
+
+                atr,
+
+                price,
+
+            ),
+
         }

@@ -7,98 +7,161 @@ from __future__ import annotations
 
 class NewsEngine:
 
+    MAX_SCORE = 10
+
     def evaluate(
+
         self,
+
         sentiment: str,
+
         confidence: float,
+
         headlines: list[dict],
+
     ) -> dict:
 
         score = 0
 
         reasons = []
 
-        sentiment = sentiment.upper()
+        sentiment = (
 
-        # -------------------------------------
-        # Sentiment
-        # -------------------------------------
+            sentiment or "NEUTRAL"
 
-        if sentiment == "POSITIVE":
+        ).upper()
 
-            score += 6
+        confidence = max(
+
+            0.0,
+
+            min(
+
+                confidence,
+
+                1.0,
+
+            ),
+
+        )
+
+        headline_count = len(
+
+            headlines,
+
+        )
+
+        if sentiment == "VERY_POSITIVE":
+
+            score = 10
 
             reasons.append(
+
+                "Very positive news sentiment."
+
+            )
+
+        elif sentiment == "POSITIVE":
+
+            score = 8
+
+            reasons.append(
+
                 "Positive news sentiment."
+
             )
 
         elif sentiment == "NEUTRAL":
 
-            score += 3
+            score = 3
 
             reasons.append(
+
                 "Neutral news sentiment."
+
+            )
+
+        elif sentiment == "NEGATIVE":
+
+            score = 1
+
+            reasons.append(
+
+                "Negative news sentiment."
+
+            )
+
+        else:
+
+            score = 0
+
+            reasons.append(
+
+                "Very negative news sentiment."
+
+            )
+
+        if confidence >= 0.90:
+
+            reasons.append(
+
+                "Very high confidence news."
+
+            )
+
+        elif confidence >= 0.75:
+
+            reasons.append(
+
+                "High confidence news."
+
+            )
+
+        elif confidence >= 0.60:
+
+            reasons.append(
+
+                "Moderate confidence news."
+
             )
 
         else:
 
             reasons.append(
-                "Negative news sentiment."
+
+                "Low confidence news."
+
             )
 
-        # -------------------------------------
-        # Confidence
-        # -------------------------------------
+        reasons.append(
 
-        if confidence >= 0.80:
+            f"{headline_count} recent headlines available."
 
-            score += 2
+        )
 
-            reasons.append(
-                "High confidence news."
-            )
+        score = min(
 
-        elif confidence >= 0.60:
+            score,
 
-            score += 1
+            self.MAX_SCORE,
 
-            reasons.append(
-                "Moderately reliable news."
-            )
-
-        # -------------------------------------
-        # Headline Count
-        # -------------------------------------
-
-        count = len(headlines)
-
-        if count >= 5:
-
-            score += 2
-
-            reasons.append(
-                f"{count} relevant headlines found."
-            )
-
-        elif count > 0:
-
-            score += 1
-
-            reasons.append(
-                f"{count} recent headlines available."
-            )
-
-        score = min(score, 10)
+        )
 
         return {
 
             "score": score,
 
-            "max_score": 10,
+            "max_score": self.MAX_SCORE,
 
             "confidence": round(
-                (score / 10) * 100
+
+                confidence * 100,
+
             ),
+
+            "sentiment": sentiment,
+
+            "headline_count": headline_count,
 
             "reasons": reasons,
 

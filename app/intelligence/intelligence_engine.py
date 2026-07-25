@@ -6,12 +6,12 @@ Central orchestrator for all intelligence modules.
 
 from __future__ import annotations
 
-from app.intelligence.technical_engine import TechnicalEngine
+from app.intelligence.confidence_engine import ConfidenceEngine
 from app.intelligence.fundamental_engine import FundamentalEngine
 from app.intelligence.news_engine import NewsEngine
-from app.intelligence.sector_engine import SectorEngine
 from app.intelligence.risk_engine import RiskEngine
-from app.intelligence.confidence_engine import ConfidenceEngine
+from app.intelligence.sector_engine import SectorEngine
+from app.intelligence.technical_engine import TechnicalEngine
 
 
 class IntelligenceEngine:
@@ -19,10 +19,15 @@ class IntelligenceEngine:
     def __init__(self):
 
         self.technical = TechnicalEngine()
+
         self.fundamental = FundamentalEngine()
+
         self.news = NewsEngine()
+
         self.sector = SectorEngine()
+
         self.risk = RiskEngine()
+
         self.confidence = ConfidenceEngine()
 
     def analyze(
@@ -46,23 +51,33 @@ class IntelligenceEngine:
     ) -> dict:
 
         technical = self.technical.evaluate(
-            **technical_input
+
+            **technical_input,
+
         )
 
         fundamental = self.fundamental.evaluate(
-            **fundamental_input
+
+            **fundamental_input,
+
         )
 
         news = self.news.evaluate(
-            **news_input
+
+            **news_input,
+
         )
 
         sector = self.sector.evaluate(
-            **sector_input
+
+            **sector_input,
+
         )
 
         risk = self.risk.evaluate(
-            **risk_input
+
+            **risk_input,
+
         )
 
         confidence = self.confidence.calculate(

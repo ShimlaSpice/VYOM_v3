@@ -28,7 +28,11 @@ class ConfidenceEngine:
     }
 
     @staticmethod
-    def _safe(value: float | int | None) -> float:
+    def _safe(
+
+        value,
+
+    ) -> float:
 
         if value is None:
 
@@ -72,35 +76,63 @@ class ConfidenceEngine:
 
     ) -> dict:
 
-        technical = self._safe(technical)
+        technical = self._safe(
 
-        fundamental = self._safe(fundamental)
+            technical,
 
-        news = self._safe(news)
+        )
 
-        sector = self._safe(sector)
+        fundamental = self._safe(
 
-        relative_strength = self._safe(relative_strength)
+            fundamental,
 
-        market = self._safe(market)
+        )
 
-        risk = self._safe(risk)
+        news = self._safe(
+
+            news,
+
+        )
+
+        sector = self._safe(
+
+            sector,
+
+        )
+
+        relative_strength = self._safe(
+
+            relative_strength,
+
+        )
+
+        market = self._safe(
+
+            market,
+
+        )
+
+        risk = self._safe(
+
+            risk,
+
+        )
 
         weighted_score = (
 
-            technical * self.WEIGHTS["technical"] / 35
+            (technical / 35) * self.WEIGHTS["technical"]
 
-            + fundamental * self.WEIGHTS["fundamental"] / 20
+            + (fundamental / 20) * self.WEIGHTS["fundamental"]
 
-            + news * self.WEIGHTS["news"] / 10
+            + (news / 10) * self.WEIGHTS["news"]
 
-            + sector * self.WEIGHTS["sector"] / 10
+            + (sector / 10) * self.WEIGHTS["sector"]
 
-            + relative_strength * self.WEIGHTS["relative_strength"] / 10
+            + (relative_strength / 10) * self.WEIGHTS["relative_strength"]
 
-            + market * self.WEIGHTS["market"] / 10
+            + (market / 10) * self.WEIGHTS["market"]
 
-            + risk * self.WEIGHTS["risk"] / 10
+            + (risk / 10) * self.WEIGHTS["risk"]
 
         )
 
@@ -110,7 +142,11 @@ class ConfidenceEngine:
 
             min(
 
-                round(weighted_score),
+                round(
+
+                    weighted_score,
+
+                ),
 
                 100,
 

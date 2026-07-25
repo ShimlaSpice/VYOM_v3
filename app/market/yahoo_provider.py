@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import math
+import pandas as pd
 import yfinance as yf
 
 from app.market.batch_downloader import BatchDownloader
@@ -21,7 +23,7 @@ class YahooFinanceProvider(MarketDataProvider):
 
         self.batch = BatchDownloader()
 
-        self.cache = {}
+        self.cache = None
 
     def connect(self) -> None:
         pass
@@ -39,7 +41,7 @@ class YahooFinanceProvider(MarketDataProvider):
 
         interval: str = "1d",
 
-    ):
+    ) -> None:
 
         self.cache = self.batch.download(
 
@@ -83,6 +85,40 @@ class YahooFinanceProvider(MarketDataProvider):
 
         }
 
+    def _history_from_cache(
+
+        self,
+
+        symbol: str,
+
+    ):
+
+        if self.cache is None:
+
+            return None
+
+        try:
+
+            if isinstance(
+
+                self.cache.columns,
+
+                pd.MultiIndex,
+
+            ):
+
+                if symbol not in self.cache.columns.get_level_values(0):
+
+                    return None
+
+                return self.cache[symbol]
+
+        except Exception:
+
+            pass
+
+        return None
+
     def get_candles(
 
         self,
@@ -95,11 +131,13 @@ class YahooFinanceProvider(MarketDataProvider):
 
     ) -> list[dict[str, Any]]:
 
-        if self.cache is not None and symbol in self.cache.columns.get_level_values(0):
+        history = self._history_from_cache(
 
-            history = self.cache[symbol]
+            symbol,
 
-        else:
+        )
+
+        if history is None:
 
             history = yf.download(
 
@@ -113,19 +151,87 @@ class YahooFinanceProvider(MarketDataProvider):
 
                 auto_adjust=False,
 
+                threads=False,
+
             )
 
         if history.empty:
 
             return []
 
-        if hasattr(history.columns, "nlevels") and history.columns.nlevels > 1:
+        if (
+
+            hasattr(
+
+                history.columns,
+
+                "nlevels",
+
+            )
+
+            and history.columns.nlevels > 1
+
+        ):
 
             history.columns = history.columns.get_level_values(0)
+
+        history = history.dropna(
+
+            subset=[
+
+                "Open",
+
+                "High",
+
+                "Low",
+
+                "Close",
+
+                "Volume",
+
+            ]
+
+        )
 
         candles = []
 
         for index, row in history.tail(limit).iterrows():
+
+            try:
+
+                open_price = float(row["Open"])
+
+                high_price = float(row["High"])
+
+                low_price = float(row["Low"])
+
+                close_price = float(row["Close"])
+
+                volume = int(row["Volume"])
+
+            except Exception:
+
+                continue
+
+            if any(
+
+                math.isnan(value)
+
+                for value in [
+
+                    open_price,
+
+                    high_price,
+
+                    low_price,
+
+                    close_price,
+
+                ]
+
+            ):
+
+                continue
 
             candles.append(
 
@@ -133,15 +239,15 @@ class YahooFinanceProvider(MarketDataProvider):
 
                     "timestamp": index,
 
-                    "open": float(row["Open"]),
+                    "open": open_price,
 
-                    "high": float(row["High"]),
+                    "high": high_price,
 
-                    "low": float(row["Low"]),
+                    "low": low_price,
 
-                    "close": float(row["Close"]),
+                    "close": close_price,
 
-                    "volume": int(row["Volume"]),
+                    "volume": volume,
 
                 }
 
@@ -171,25 +277,85 @@ class YahooFinanceProvider(MarketDataProvider):
 
             "symbol": symbol,
 
-            "sector": info.get("sector", "Unknown"),
+            "sector": info.get(
 
-            "industry": info.get("industry", "Unknown"),
+                "sector",
 
-            "market_cap": info.get("marketCap", 0),
+                "Unknown",
 
-            "pe": info.get("trailingPE", 0),
+            ),
 
-            "forward_pe": info.get("forwardPE", 0),
+            "industry": info.get(
 
-            "eps": info.get("trailingEps", 0),
+                "industry",
 
-            "roe": info.get("returnOnEquity", 0),
+                "Unknown",
 
-            "debt_to_equity": info.get("debtToEquity", 0),
+            ),
 
-            "book_value": info.get("bookValue", 0),
+            "market_cap": info.get(
 
-            "dividend_yield": info.get("dividendYield", 0),
+                "marketCap",
+
+                0,
+
+            ),
+
+            "pe": info.get(
+
+                "trailingPE",
+
+                0,
+
+            ),
+
+            "forward_pe": info.get(
+
+                "forwardPE",
+
+                0,
+
+            ),
+
+            "eps": info.get(
+
+                "trailingEps",
+
+                0,
+
+            ),
+
+            "roe": info.get(
+
+                "returnOnEquity",
+
+                0,
+
+            ),
+
+            "debt_to_equity": info.get(
+
+                "debtToEquity",
+
+                None,
+
+            ),
+
+            "book_value": info.get(
+
+                "bookValue",
+
+                0,
+
+            ),
+
+            "dividend_yield": info.get(
+
+                "dividendYield",
+
+                0,
+
+            ),
 
         }
 

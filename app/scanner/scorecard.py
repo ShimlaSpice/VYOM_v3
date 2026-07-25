@@ -41,6 +41,8 @@ class ScoreCard:
 
         self.reasons: list[str] = []
 
+        self.breakdown: dict[str, int] = {}
+
     def add(
 
         self,
@@ -51,19 +53,25 @@ class ScoreCard:
 
         reason: str,
 
-    ):
+    ) -> None:
 
-        if not passed:
-
-            return
-
-        self.score += self.WEIGHTS.get(
+        weight = self.WEIGHTS.get(
 
             category,
 
             0,
 
         )
+
+        self.breakdown[category] = 0
+
+        if not passed:
+
+            return
+
+        self.score += weight
+
+        self.breakdown[category] = weight
 
         self.reasons.append(
 
@@ -98,3 +106,31 @@ class ScoreCard:
             2,
 
         )
+
+    def as_dict(
+
+        self,
+
+    ) -> dict:
+
+        return {
+
+            "score": self.score,
+
+            "max_score": self.max_score,
+
+            "percentage": self.percentage,
+
+            "breakdown": dict(
+
+                self.breakdown,
+
+            ),
+
+            "reasons": list(
+
+                self.reasons,
+
+            ),
+
+        }

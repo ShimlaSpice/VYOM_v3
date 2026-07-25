@@ -21,10 +21,42 @@ class Top10Engine:
 
         limit: int = 10,
 
-    ):
+    ) -> list:
+
+        if not recommendations:
+
+            return []
 
         ranked = self.ranker.rank(
-            recommendations
+
+            recommendations,
+
         )
 
-        return ranked[:limit]
+        final = []
+
+        seen = set()
+
+        for recommendation in ranked:
+
+            if recommendation.symbol in seen:
+
+                continue
+
+            seen.add(
+
+                recommendation.symbol,
+
+            )
+
+            final.append(
+
+                recommendation,
+
+            )
+
+            if len(final) >= limit:
+
+                break
+
+        return final

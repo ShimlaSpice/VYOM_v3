@@ -7,61 +7,121 @@ from __future__ import annotations
 
 class TechnicalEngine:
 
+    MAX_SCORE = 35
+
     def evaluate(
+
         self,
+
         score: int,
+
         rsi: float,
+
         macd: float,
+
         sma: bool,
+
         ema: bool,
+
         breakout: bool,
+
         volume: bool,
+
     ) -> dict:
+
+        total = 0
 
         reasons = []
 
-        technical_score = 0
-
         if sma:
-            technical_score += 5
-            reasons.append("Price above SMA20")
+
+            total += 5
+
+            reasons.append(
+
+                "Price above SMA20"
+
+            )
 
         if ema:
-            technical_score += 5
-            reasons.append("Price above EMA20")
+
+            total += 5
+
+            reasons.append(
+
+                "Price above EMA20"
+
+            )
 
         if 45 <= rsi <= 65:
-            technical_score += 5
-            reasons.append(f"Healthy RSI ({rsi:.2f})")
+
+            total += 5
+
+            reasons.append(
+
+                f"Healthy RSI ({rsi:.2f})"
+
+            )
+
+        elif rsi > 65:
+
+            total += 3
+
+            reasons.append(
+
+                f"Strong RSI ({rsi:.2f})"
+
+            )
 
         if macd > 0:
-            technical_score += 5
-            reasons.append("Positive MACD")
+
+            total += 5
+
+            reasons.append(
+
+                "Positive MACD"
+
+            )
 
         if breakout:
-            technical_score += 10
-            reasons.append("Breakout confirmed")
+
+            total += 8
+
+            reasons.append(
+
+                "20-Day Breakout"
+
+            )
 
         if volume:
-            technical_score += 5
-            reasons.append("Volume confirmation")
 
-        technical_score += min(score, 35)
+            total += 7
 
-        technical_score = min(
-            technical_score,
-            35,
+            reasons.append(
+
+                "High Volume Confirmation"
+
+            )
+
+        total = min(
+
+            total,
+
+            self.MAX_SCORE,
+
         )
 
         confidence = round(
-            (technical_score / 35) * 100,
+
+            (total / self.MAX_SCORE) * 100
+
         )
 
         return {
 
-            "score": technical_score,
+            "score": total,
 
-            "max_score": 35,
+            "max_score": self.MAX_SCORE,
 
             "confidence": confidence,
 
