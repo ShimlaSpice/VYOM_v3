@@ -10,6 +10,11 @@ from .validator import MarketDataValidator
 from .cache import MarketCache
 from .downloader import BatchDownloader
 
+from .global_market_provider import GlobalMarketProvider
+from .fii_dii_provider import FIIDIIProvider
+from .corporate_action_provider import CorporateActionProvider
+from .insider_activity_provider import InsiderActivityProvider
+
 __all__ = [
     "MarketDataProvider",
     "YahooFinanceProvider",
@@ -19,4 +24,8 @@ __all__ = [
     "MarketCache",
     "Quote",
     "Candle",
-]               
+    "GlobalMarketProvider",
+    "FIIDIIProvider",
+    "CorporateActionProvider",
+    "InsiderActivityProvider",
+]
