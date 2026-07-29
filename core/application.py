@@ -33,9 +33,23 @@ class Application:
 
         logger.success("Application started successfully.")
 
-        # UI startup will be added here.
-        # Scheduler will be added here.
-        # Database initialization will be added here.
+        from app.pipeline.market_pipeline import MarketPipeline
+
+        pipeline = MarketPipeline()
+
+        recommendations = pipeline.run()
+
+        logger.success(
+            f"Generated {len(recommendations)} recommendations."
+        )
+
+        for recommendation in recommendations:
+
+            logger.info(
+                f"{recommendation.symbol:<15}"
+                f"{recommendation.recommendation:<12}"
+                f"Confidence: {recommendation.confidence}"
+            )
 
     def shutdown(self) -> None:
         """Gracefully shut down the application."""

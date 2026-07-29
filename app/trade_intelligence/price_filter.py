@@ -7,51 +7,29 @@ from __future__ import annotations
 
 class PriceFilter:
 
-    FILTERS = {
-
-        "UNDER_100": 100,
-
-        "UNDER_500": 500,
-
-        "UNDER_1000": 1000,
-
-        "UNDER_5000": 5000,
-
-        "ALL": float("inf"),
-
-    }
-
     def apply(
 
         self,
 
         stocks: list,
 
-        filter_name: str = "ALL",
+        filters: dict | None = None,
 
     ) -> list:
 
-        filter_name = filter_name.upper()
+        if filters is None:
 
-        maximum_price = self.FILTERS.get(
+            return stocks
 
-            filter_name,
+        min_price = self._minimum(filters)
 
-            float("inf"),
+        max_price = self._maximum(filters)
 
-        )
-
-        filtered = []
+        qualified = []
 
         for stock in stocks:
 
-            if isinstance(
-
-                stock,
-
-                dict,
-
-            ):
+            if isinstance(stock, dict):
 
                 price = stock.get(
 
@@ -59,7 +37,7 @@ class PriceFilter:
 
                     stock.get(
 
-                        "last_price",
+                        "entry",
 
                         0,
 
@@ -83,25 +61,135 @@ class PriceFilter:
 
                 continue
 
-            if price <= maximum_price:
+            if price < min_price:
 
-                filtered.append(
+                continue
 
-                    stock,
+            if max_price > 0 and price > max_price:
 
-                )
+                continue
 
-        return filtered
+            qualified.append(
 
-    def available_filters(
+                stock,
+
+            )
+
+        return qualified
+
+    def _minimum(
 
         self,
 
-    ) -> list[str]:
+        filters: dict,
 
-        return list(
+    ) -> float:
 
-            self.FILTERS.keys()
+        try:
+
+            value = filters.get(
+
+                "min_price",
+
+                "",
+
+            )
+
+            if value:
+
+                return float(value)
+
+        except Exception:
+
+            pass
+
+        band = filters.get(
+
+            "price_band",
+
+            "All",
+
+        )
+
+        mapping = {
+
+            "Below ₹100": 0,
+
+            "₹100 - ₹500": 100,
+
+            "₹500 - ₹1,000": 500,
+
+            "₹1,000 - ₹5,000": 1000,
+
+            "Above ₹5,000": 5000,
+
+            "All": 0,
+
+        }
+
+        return mapping.get(
+
+            band,
+
+            0,
+
+        )
+
+    def _maximum(
+
+        self,
+
+        filters: dict,
+
+    ) -> float:
+
+        try:
+
+            value = filters.get(
+
+                "max_price",
+
+                "",
+
+            )
+
+            if value:
+
+                return float(value)
+
+        except Exception:
+
+            pass
+
+        band = filters.get(
+
+            "price_band",
+
+            "All",
+
+        )
+
+        mapping = {
+
+            "Below ₹100": 100,
+
+            "₹100 - ₹500": 500,
+
+            "₹500 - ₹1,000": 1000,
+
+            "₹1,000 - ₹5,000": 5000,
+
+            "Above ₹5,000": 0,
+
+            "All": 0,
+
+        }
+
+        return mapping.get(
+
+            band,
+
+            0,
 
         )
 
@@ -113,18 +201,34 @@ class PriceFilter:
 
         filtered: list,
 
-        filter_name: str,
+        filters: dict,
 
     ) -> dict:
 
         return {
 
-            "filter": filter_name,
+            "total_scanned": len(
 
-            "total_scanned": len(original),
+                original,
 
-            "qualified": len(filtered),
+            ),
 
-            "removed": len(original) - len(filtered),
+            "qualified": len(
+
+                filtered,
+
+            ),
+
+            "removed": len(
+
+                original,
+
+            ) - len(
+
+                filtered,
+
+            ),
+
+            "filters": filters,
 
         }

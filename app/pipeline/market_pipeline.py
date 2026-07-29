@@ -1,21 +1,19 @@
 """
 Complete Market Pipeline.
 
-Universe
-    ↓
+UI
+ ↓
 Scanner
-    ↓
+ ↓
 Recommendation Pipeline
-    ↓
-Top 10 Engine
+ ↓
+Top10
 """
 
 from __future__ import annotations
 
-from app.market import YahooFinanceProvider
-from app.pipeline.recommendation_pipeline import (
-    RecommendationPipeline,
-)
+from app.market.provider_manager import ProviderManager
+from app.pipeline.recommendation_pipeline import RecommendationPipeline
 from app.scanner.scanner import ScannerEngine
 from app.top10 import Top10Engine
 
@@ -24,7 +22,9 @@ class MarketPipeline:
 
     def __init__(self):
 
-        self.provider = YahooFinanceProvider()
+        self.provider = ProviderManager()
+
+        self.provider.connect()
 
         self.scanner = ScannerEngine(
 
@@ -40,9 +40,25 @@ class MarketPipeline:
 
         self,
 
+        filters: dict | None = None,
+
     ):
 
-        scan_result = self.scanner.scan()
+        if filters is None:
+
+            filters = {
+
+                "universe": "NIFTY50",
+
+                "top": 10,
+
+            }
+
+        scan_result = self.scanner.scan(
+
+            filters=filters,
+
+        )
 
         recommendations = []
 
@@ -66,13 +82,13 @@ class MarketPipeline:
 
                 candidate.symbol,
 
-            )
+            ) or {}
 
-            if not fundamentals:
+            news = self.provider.get_news(
 
-                fundamentals = {}
+                candidate.symbol,
 
-            news = {
+            ) or {
 
                 "sentiment": "NEUTRAL",
 
@@ -81,14 +97,6 @@ class MarketPipeline:
                 "headlines": [],
 
             }
-
-            sector = fundamentals.get(
-
-                "sector",
-
-                "Unknown",
-
-            )
 
             recommendation = self.pipeline.build(
 
@@ -100,7 +108,13 @@ class MarketPipeline:
 
                 news=news,
 
-                sector=sector,
+                sector=fundamentals.get(
+
+                    "sector",
+
+                    "Unknown",
+
+                ),
 
             )
 
@@ -114,6 +128,12 @@ class MarketPipeline:
 
             recommendations,
 
-            limit=10,
+            limit=filters.get(
+
+                "top",
+
+                10,
+
+            ),
 
         )

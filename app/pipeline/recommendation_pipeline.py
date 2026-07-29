@@ -261,6 +261,32 @@ class RecommendationPipeline:
 
         )
 
+        market_data = {
+
+            "open": candles[-1]["open"],
+
+            "high": candles[-1]["high"],
+
+            "low": candles[-1]["low"],
+
+            "close": candles[-1]["close"],
+
+            "previous_close": candles[-2]["close"],
+
+            "change": candles[-1]["close"] - candles[-2]["close"],
+
+            "change_percent": (
+
+                (candles[-1]["close"] - candles[-2]["close"])
+
+                / candles[-2]["close"]
+
+            ) * 100,
+
+            "volume": candles[-1]["volume"],
+
+        }
+
         return self.recommendation.generate(
 
             symbol=candidate.symbol,
@@ -280,5 +306,9 @@ class RecommendationPipeline:
             trade_setup=setup,
 
             trade_type=trade,
+
+            market_data=market_data,
+
+            fundamentals_data=fundamentals,
 
         )

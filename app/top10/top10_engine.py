@@ -1,5 +1,5 @@
 """
-Top 10 Engine.
+Top Recommendation Engine.
 """
 
 from __future__ import annotations
@@ -21,7 +21,33 @@ class Top10Engine:
 
         limit: int = 10,
 
+        sort_by: str = "Confidence",
+
     ) -> list:
+
+        if not recommendations:
+
+            return []
+
+        recommendations = [
+
+            recommendation
+
+            for recommendation in recommendations
+
+            if recommendation.recommendation
+
+            in (
+
+                "STRONG BUY",
+
+                "BUY",
+
+                "WATCH",
+
+            )
+
+        ]
 
         if not recommendations:
 
@@ -32,6 +58,50 @@ class Top10Engine:
             recommendations,
 
         )
+
+        if sort_by.lower() == "score":
+
+            ranked.sort(
+
+                key=lambda x: x.scores.get(
+
+                    "technical",
+
+                    0,
+
+                ),
+
+                reverse=True,
+
+            )
+
+        elif sort_by.lower() == "probability":
+
+            ranked.sort(
+
+                key=lambda x: x.probability,
+
+                reverse=True,
+
+            )
+
+        elif sort_by.lower() == "price":
+
+            ranked.sort(
+
+                key=lambda x: x.entry,
+
+            )
+
+        else:
+
+            ranked.sort(
+
+                key=lambda x: x.confidence,
+
+                reverse=True,
+
+            )
 
         final = []
 

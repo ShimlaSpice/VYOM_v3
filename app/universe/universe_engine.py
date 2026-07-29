@@ -6,14 +6,14 @@ Provides stock universe for scanning.
 
 from __future__ import annotations
 
-from app.market import YahooFinanceProvider
+from app.universe.universe_manager import UniverseManager
 
 
 class UniverseEngine:
 
     def __init__(self):
 
-        self.provider = YahooFinanceProvider()
+        self.manager = UniverseManager()
 
     def get_universe(
 
@@ -23,12 +23,44 @@ class UniverseEngine:
 
     ) -> list[str]:
 
-        universe = universe.upper()
+        symbols = self.manager.get_symbols(
 
-        if universe == "NIFTY50":
+            universe,
 
-            return self.provider.get_watchlist()
-
-        raise ValueError(
-            f"Unknown universe: {universe}"
         )
+
+        if not symbols:
+
+            raise ValueError(
+
+                f"No symbols found for universe: {universe}"
+
+            )
+
+        return symbols
+
+    def available_universes(
+
+        self,
+
+    ) -> list[str]:
+
+        return [
+
+            "NIFTY50",
+
+            "NIFTY100",
+
+            "NIFTY200",
+
+            "NIFTY500",
+
+            "FO",
+
+            "MIDCAP",
+
+            "SMALLCAP",
+
+            "PENNY",
+
+        ]

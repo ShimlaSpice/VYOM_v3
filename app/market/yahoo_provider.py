@@ -11,6 +11,7 @@ import pandas as pd
 import yfinance as yf
 
 from app.market.batch_downloader import BatchDownloader
+from app.market.cache import MarketCache
 from app.market.market_data_provider import MarketDataProvider
 from app.market.watchlist_loader import WatchlistLoader
 
@@ -24,6 +25,8 @@ class YahooFinanceProvider(MarketDataProvider):
         self.batch = BatchDownloader()
 
         self.cache = None
+
+        self.market_cache = MarketCache()
 
     def connect(self) -> None:
         pass
@@ -263,7 +266,21 @@ class YahooFinanceProvider(MarketDataProvider):
 
     ) -> dict[str, Any]:
 
-        ticker = yf.Ticker(symbol)
+        cached = self.market_cache.get_fundamentals(
+
+            symbol,
+
+        )
+
+        if cached is not None:
+
+            return cached
+
+        ticker = yf.Ticker(
+
+            symbol,
+
+        )
 
         try:
 
@@ -273,7 +290,7 @@ class YahooFinanceProvider(MarketDataProvider):
 
             return {}
 
-        return {
+        fundamentals = {
 
             "symbol": symbol,
 
@@ -359,18 +376,103 @@ class YahooFinanceProvider(MarketDataProvider):
 
         }
 
+        self.market_cache.set_fundamentals(
+
+            symbol,
+
+            fundamentals,
+
+        )
+
+        return fundamentals
+    
+
+
+
+
+
+
+    def get_news(
+        self,
+        symbol: str,
+    ) -> dict[str, Any]:
+
+        return {
+            "headlines": [],
+        }
+
     def get_watchlist(
 
         self,
+        universe: str = "nifty50",
 
     ) -> list[str]:
 
         loader = WatchlistLoader()
 
         return loader.load(
-
-            "nifty50.txt",
-
-            limit=self.WATCHLIST_LIMIT,
+            
+            f"{universe.lower()}.txt",
+            
+            limit=None,
 
         )
+
+    def get_bulk_quotes(
+        self,
+        symbols: list[str],
+    ) -> dict[str, Any]:
+
+        quotes = {}
+
+        for symbol in symbols:
+
+            quotes[symbol] = self.get_quote(symbol)
+
+        return quotes
+
+    def get_market_status(
+        self,
+    ) -> dict[str, Any]:
+
+        return {
+            "status": "UNKNOWN",
+        }
+
+    def get_indices(
+        self,
+    ) -> dict[str, Any]:
+
+        return {}
+
+    def get_sector_data(
+        self,
+    ) -> dict[str, Any]:
+
+        return {}
+
+    def get_fii_dii_data(
+        self,
+    ) -> dict[str, Any]:
+
+        return {}
+
+    def get_corporate_actions(
+        self,
+        symbol: str,
+    ) -> dict[str, Any]:
+
+        return {}
+
+    def get_insider_trades(
+        self,
+        symbol: str,
+    ) -> dict[str, Any]:
+
+        return {}
+
+    def get_market_breadth(
+        self,
+    ) -> dict[str, Any]:
+
+        return {}
