@@ -4,6 +4,8 @@ Main Window for VYOM Desktop.
 
 from __future__ import annotations
 
+from time import perf_counter
+
 from PySide6.QtCore import (
     QTimer,
 )
@@ -32,7 +34,7 @@ from ui.top_bar import TopBar
 
 class MainWindow(QMainWindow):
     """
-    Main Application Window.
+    Main application window.
     """
 
     def __init__(self):
@@ -306,6 +308,26 @@ class MainWindow(QMainWindow):
 
     ) -> None:
 
+        scan_start = perf_counter()
+
+        self.filter_bar.scan_button.setText(
+
+            "🔄 Scanning...",
+
+        )
+
+        self.filter_bar.scan_status.setText(
+
+            "Downloading Market Data...",
+
+        )
+
+        self.filter_bar.scan_timer.setText(
+
+            "⏱ 0.00 sec",
+
+        )
+
         self.progress.show()
 
         self.progress.setValue(
@@ -338,15 +360,35 @@ class MainWindow(QMainWindow):
 
         )
 
+        self.filter_bar.scan_status.setText(
+
+            "Analyzing Market...",
+
+        )
+
         recommendations = self.pipeline.run(
 
             filters,
 
         )
 
+        elapsed = perf_counter() - scan_start
+
+        self.filter_bar.scan_timer.setText(
+
+            f"⏱ {elapsed:.2f} sec",
+
+        )
+
         self.progress.setValue(
 
             80,
+
+        )
+
+        self.filter_bar.scan_status.setText(
+
+            "Preparing Dashboard...",
 
         )
 
@@ -399,6 +441,18 @@ class MainWindow(QMainWindow):
         print(
 
             message,
+
+        )
+
+        self.filter_bar.scan_button.setText(
+
+            "🔍 Scan (F5)",
+
+        )
+
+        self.filter_bar.scan_status.setText(
+
+            "Ready",
 
         )
 

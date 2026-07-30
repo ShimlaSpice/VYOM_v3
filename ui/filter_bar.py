@@ -4,17 +4,22 @@ Filter Bar for VYOM Dashboard.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import (
+    Qt,
+    Signal,
+)
+
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QVBoxLayout,
     QWidget,
 )
-from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QCheckBox
+
 
 class FilterBar(QWidget):
 
@@ -30,185 +35,424 @@ class FilterBar(QWidget):
 
         layout = QHBoxLayout()
 
-        layout.setSpacing(10)
+        layout.setSpacing(
 
-        layout.addWidget(QLabel("Market"))
+            10,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Market"),
+
+        )
 
         self.market = QComboBox()
-        self.market.addItems(
-            [
-                "NSE",
-                "BSE",
-            ]
-        )
-        layout.addWidget(self.market)
 
-        layout.addWidget(QLabel("Universe"))
+        self.market.addItems(
+
+            [
+
+                "NSE",
+
+                "BSE",
+
+            ]
+
+        )
+
+        layout.addWidget(
+
+            self.market,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Universe"),
+
+        )
 
         self.universe = QComboBox()
-        self.universe.addItems(
-            [
-                "NIFTY50",
-                "NIFTY100",
-                "NIFTY200",
-                "NIFTY500",
-                "F&O",
-                "MIDCAP",
-                "SMALLCAP",
-                "PENNY",
-            ]
-        )
-        layout.addWidget(self.universe)
 
-        layout.addWidget(QLabel("Category"))
+        self.universe.addItems(
+
+            [
+
+                "NIFTY50",
+
+                "NIFTY100",
+
+                "NIFTY200",
+
+                "NIFTY500",
+
+                "F&O",
+
+                "MIDCAP",
+
+                "SMALLCAP",
+
+                "PENNY",
+
+            ]
+
+        )
+
+        layout.addWidget(
+
+            self.universe,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Category"),
+
+        )
 
         self.category = QComboBox()
-        self.category.addItems(
-            [
-                "Today",
-                "Intraday",
-                "Swing",
-                "Long Term",
-            ]
-        )
-        layout.addWidget(self.category)
 
-        layout.addWidget(QLabel("Price"))
+        self.category.addItems(
+
+            [
+
+                "Today",
+
+                "Intraday",
+
+                "Swing",
+
+                "Long Term",
+
+            ]
+
+        )
+
+        layout.addWidget(
+
+            self.category,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Price"),
+
+        )
 
         self.price_band = QComboBox()
+
         self.price_band.addItems(
+
             [
+
                 "All",
+
                 "Below ₹100",
+
                 "₹100 - ₹500",
+
                 "₹500 - ₹1,000",
+
                 "₹1,000 - ₹5,000",
+
                 "Above ₹5,000",
+
             ]
+
         )
-        layout.addWidget(self.price_band)
+
+        layout.addWidget(
+
+            self.price_band,
+
+        )
 
         self.min_price = QLineEdit()
-        self.min_price.setPlaceholderText("Min")
-        self.min_price.setFixedWidth(70)
-        layout.addWidget(self.min_price)
+
+        self.min_price.setPlaceholderText(
+
+            "Min",
+
+        )
+
+        self.min_price.setFixedWidth(
+
+            70,
+
+        )
+
+        layout.addWidget(
+
+            self.min_price,
+
+        )
 
         self.max_price = QLineEdit()
-        self.max_price.setPlaceholderText("Max")
-        self.max_price.setFixedWidth(70)
-        layout.addWidget(self.max_price)
 
-        layout.addWidget(QLabel("Capital"))
+        self.max_price.setPlaceholderText(
+
+            "Max",
+
+        )
+
+        self.max_price.setFixedWidth(
+
+            70,
+
+        )
+
+        layout.addWidget(
+
+            self.max_price,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Capital"),
+
+        )
 
         self.capital = QComboBox()
-        self.capital.addItems(
-            [
-                "10000",
-                "25000",
-                "50000",
-                "100000",
-                "500000",
-            ]
-        )
-        layout.addWidget(self.capital)
 
-        layout.addWidget(QLabel("Sort"))
+        self.capital.addItems(
+
+            [
+
+                "10000",
+
+                "25000",
+
+                "50000",
+
+                "100000",
+
+                "500000",
+
+            ]
+
+        )
+
+        layout.addWidget(
+
+            self.capital,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Sort"),
+
+        )
 
         self.sort_by = QComboBox()
-        self.sort_by.addItems(
-            [
-                "Confidence",
-                "Score",
-                "Probability",
-                "Price",
-            ]
-        )
-        layout.addWidget(self.sort_by)
 
-        layout.addWidget(QLabel("Top"))
+        self.sort_by.addItems(
+
+            [
+
+                "Confidence",
+
+                "Score",
+
+                "Probability",
+
+                "Price",
+
+            ]
+
+        )
+
+        layout.addWidget(
+
+            self.sort_by,
+
+        )
+
+        layout.addWidget(
+
+            QLabel("Top"),
+
+        )
 
         self.top = QComboBox()
+
         self.top.addItems(
+
             [
+
                 "10",
+
                 "20",
+
                 "50",
+
             ]
+
         )
-        layout.addWidget(self.top)
 
         layout.addWidget(
-            QLabel("Refresh")
+
+            self.top,
+
         )
+
+        layout.addWidget(
+
+            QLabel("Refresh"),
+
+        )
+
         self.refresh_interval = QComboBox()
+
         self.refresh_interval.addItems(
+
             [
+
                 "30 Sec",
+
                 "1 Min",
+
                 "2 Min",
+
                 "5 Min",
+
                 "10 Min",
+
             ]
+
         )
 
         layout.addWidget(
+
             self.refresh_interval,
+
         )
 
         layout.addStretch()
+        self.scan_button = QPushButton(
 
-        self.scan_button = QPushButton("🔍 Scan (F5)")
-        self.scan_button.clicked.connect(
-            self._emit_scan_request,
+            "🔍 Scan (F5)",
+
         )
 
-        self.refresh = QPushButton("↻ Refresh")
+        self.scan_button.setMinimumHeight(
+
+            40,
+
+        )
+
+        self.scan_button.clicked.connect(
+
+            self._emit_scan_request,
+
+        )
+
+        button_layout = QVBoxLayout()
+
+        button_layout.setSpacing(
+
+            2,
+
+        )
+
+        button_layout.addWidget(
+
+            self.scan_button,
+
+        )
+
+        self.scan_timer = QLabel(
+
+            "⏱ 0.00 sec",
+
+        )
+
+        self.scan_timer.setAlignment(
+
+            Qt.AlignCenter,
+
+        )
+
+        button_layout.addWidget(
+
+            self.scan_timer,
+
+        )
+
+        self.scan_status = QLabel(
+
+            "Ready",
+
+        )
+
+        self.scan_status.setAlignment(
+
+            Qt.AlignCenter,
+
+        )
+
+        button_layout.addWidget(
+
+            self.scan_status,
+
+        )
+
+        layout.addLayout(
+
+            button_layout,
+
+        )
+
+        self.refresh = QPushButton(
+
+            "↻ Refresh",
+
+        )
+
+        self.refresh.setMinimumHeight(
+
+            40,
+
+        )
 
         self.refresh.clicked.connect(
+
             self._emit_scan_request,
+
         )
 
         layout.addWidget(
+
             self.refresh,
+
         )
 
         self.auto_refresh = QCheckBox(
-            "Auto"
+
+            "Auto",
+
         )
 
         layout.addWidget(
+
             self.auto_refresh,
-        )
 
-        layout.addWidget(
-            self.scan_button,
         )
 
         self.setLayout(
+
             layout,
-        )
-
-        QShortcut(
-
-           QKeySequence("F5"),
-
-            self,
-
-            activated=self._emit_scan_request,
 
         )
 
-        QShortcut(
+    def _emit_scan_request(
 
-            QKeySequence("Ctrl+R"),
+        self,
 
-            self,
-
-            activated=self._emit_scan_request,
-
-        )
-
-    def _emit_scan_request(self):
+    ) -> None:
 
         self.scan_requested.emit(
 
@@ -231,9 +475,11 @@ class FilterBar(QWidget):
                 "sort_by": self.sort_by.currentText(),
 
                 "top": int(
-                    self.top.currentText()
+
+                    self.top.currentText(),
+
                 ),
-                
+
                 "auto_refresh": self.auto_refresh.isChecked(),
 
                 "refresh_interval": self.refresh_interval.currentText(),

@@ -6,8 +6,9 @@ Central orchestrator for all intelligence modules.
 
 from __future__ import annotations
 
-from app.ai.jarvis_engine import JarvisEngine
+from core.market_context import MarketContext
 
+from app.ai.jarvis_engine import JarvisEngine
 from app.intelligence.confidence_engine import ConfidenceEngine
 from app.intelligence.fundamental_engine import FundamentalEngine
 from app.intelligence.news_engine import NewsEngine
@@ -35,103 +36,74 @@ class IntelligenceEngine:
         self.jarvis = JarvisEngine()
 
     def analyze(
-
         self,
-
-        technical_input: dict,
-
+        context: MarketContext,
         fundamental_input: dict,
-
         news_input: dict,
-
         sector_input: dict,
-
-        risk_input: dict,
-
         relative_strength: float,
-
         market_score: float,
-
     ) -> dict:
 
+        indicators = context.indicators
+
         technical = self.technical.evaluate(
-
-            **technical_input,
-
+            score=0,
+            rsi=indicators["rsi"],
+            macd=indicators["macd"],
+            sma=context.close > indicators["sma20"],
+            ema=context.close > indicators["ema20"],
+            breakout=indicators["breakout"],
+            volume=indicators["volume_ratio"] >= 1.20,
         )
 
         fundamental = self.fundamental.evaluate(
-
             **fundamental_input,
-
         )
 
         news = self.news.evaluate(
-
             **news_input,
-
         )
 
         sector = self.sector.evaluate(
-
             **sector_input,
-
         )
 
         risk = self.risk.evaluate(
-
-            **risk_input,
-
+            atr_percent=indicators["atr_percent"],
+            volatility=indicators["volatility"],
+            risk_reward=fundamental_input.get(
+                "risk_reward",
+                2.0,
+            ),
         )
 
         confidence = self.confidence.calculate(
-
             technical=technical["score"],
-
             fundamental=fundamental["score"],
-
             news=news["score"],
-
             sector=sector["score"],
-
             relative_strength=relative_strength,
-
             market=market_score,
-
             risk=risk["score"],
-
         )
 
         jarvis = self.jarvis.analyze(
-
             technical=technical,
-
             fundamental=fundamental,
-
             news=news,
-
             sector=sector,
-
             risk=risk,
-
             confidence=confidence,
-
         )
 
         return {
-
+            "context": context,
             "technical": technical,
-
             "fundamental": fundamental,
-
             "news": news,
-
             "sector": sector,
-
             "risk": risk,
-
             "confidence": confidence,
-
             "jarvis": jarvis,
-
         }

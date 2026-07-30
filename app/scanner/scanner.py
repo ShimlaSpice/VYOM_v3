@@ -130,269 +130,107 @@ class ScannerEngine:
         return result
 
     def _scan_symbol(
-
         self,
-
         symbol: str,
-
         min_price: float,
-
         max_price: float,
-
     ) -> ScanCandidate | None:
 
-        candles = self.provider.get_candles(
+        context = self.provider.get_market_context(symbol)
 
-            symbol=symbol,
-
-            interval="1d",
-
-            limit=100,
-
-        )
-
-        if len(candles) < 50:
-
+        if context is None:
             return None
 
-        closes = [
-
-            c["close"]
-
-            for c in candles
-
-        ]
-
-        highs = [
-
-            c["high"]
-
-            for c in candles
-
-        ]
-
-        lows = [
-
-            c["low"]
-
-            for c in candles
-
-        ]
-
-        volumes = [
-
-            c["volume"]
-
-            for c in candles
-
-        ]
-
-        latest_price = closes[-1]
+        latest_price = context.close
 
         if latest_price < min_price:
-
             return None
 
         if max_price > 0 and latest_price > max_price:
-
             return None
 
-        latest_volume = volumes[-1]
-
-        sma20 = TechnicalIndicators.sma(
-
-            closes,
-
-            20,
-
-        )
-
-        sma50 = TechnicalIndicators.sma(
-
-            closes,
-
-            50,
-
-        )
-
-        ema20 = TechnicalIndicators.ema(
-
-            closes,
-
-            20,
-
-        )
-
-        rsi = TechnicalIndicators.rsi(
-
-            closes,
-
-        )
-
-        macd, signal = TechnicalIndicators.macd(
-
-            closes,
-
-        )
-
-        average_volume = TechnicalIndicators.average_volume(
-
-            volumes,
-
-        )
-
-        breakout = TechnicalIndicators.breakout(
-
-            highs,
-
-            latest_price,
-
-        )
-
-        stock_change = TechnicalIndicators.price_change(
-
-            latest_price,
-
-            closes[-2],
-
-        )
-
-        market_change = 0.0
+        indicators = context.indicators
 
         relative_strength = RelativeStrength.calculate(
-
-            stock_change,
-
-            market_change,
-
+            indicators.get("price_change", 0.0),
+            0.0,
         )
 
         scorecard = ScoreCard()
+
         scorecard.add(
-
-                "sma20",
-
-                latest_price > sma20,
-
-            "Price above SMA20",
-
+            "sma20",
+            latest_price > indicators["sma20"],
+        "Price above SMA20",
         )
 
         scorecard.add(
-
             "sma50",
-
-            latest_price > sma50,
-
+            latest_price > indicators["sma50"],
             "Price above SMA50",
-
         )
 
         scorecard.add(
-
             "ema20",
-
-            latest_price > ema20,
-
+            latest_price > indicators["ema20"],
             "Price above EMA20",
-
         )
 
         scorecard.add(
-
             "rsi",
-
-            45 <= rsi <= 65,
-
-            f"Healthy RSI ({rsi:.2f})",
-
+            45 <= indicators["rsi"] <= 65,
+            f"Healthy RSI ({indicators['rsi']:.2f})",
         )
 
         scorecard.add(
-
             "macd",
-
-            macd > signal,
-
-            f"Positive MACD ({macd:.2f})",
-
+            indicators["macd"] > indicators["macd_signal"],
+            f"Positive MACD ({indicators['macd']:.2f})",
         )
 
         scorecard.add(
-
             "volume",
-
-            latest_volume > average_volume * 1.5,
-
+            indicators["volume_ratio"] >= 1.5,
             "Volume Spike",
-
         )
 
         scorecard.add(
-
             "breakout",
-
-            breakout,
-
+            indicators["breakout"],
             "20-Day Breakout",
-
         )
 
         scorecard.add(
-
             "relative_strength",
-
             relative_strength > 1,
-
             f"Relative Strength ({relative_strength:.2f})",
-
         )
 
         candidate = ScanCandidate(
-
             symbol=symbol,
-
             score=scorecard.total,
-
-            reasons=list(
-
-                scorecard.reasons,
-
-            ),
-
+            reasons=list(scorecard.reasons),
             price=latest_price,
-
-            volume=latest_volume,
-
-            rsi=rsi,
-
-            macd=macd,
-
-            sma20=sma20,
-
-            sma50=sma50,
-
-            ema20=ema20,
-
+            volume=context.volume,
+            rsi=indicators["rsi"],
+            macd=indicators["macd"],
+            sma20=indicators["sma20"],
+            sma50=indicators["sma50"],
+            ema20=indicators["ema20"],
             relative_strength=relative_strength,
-
         )
 
-        candidate.average_volume = average_volume
-
-        candidate.breakout = breakout
-
-        candidate = self.decision_engine.evaluate(
-
-            candidate,
-
+        candidate.average_volume = (
+            context.volume / indicators["volume_ratio"]
+            if indicators["volume_ratio"] > 0
+            else context.volume
         )
 
-        candidate = self.ai_analyst.analyze(
+        candidate.breakout = indicators["breakout"]
 
-            candidate,
+        candidate = self.decision_engine.evaluate(candidate)
 
-        )
+        candidate = self.ai_analyst.analyze(candidate)
 
         return candidate
 
