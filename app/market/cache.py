@@ -1,24 +1,61 @@
 """
-High Performance Market Cache.
+===========================================================
+VYOM AI
+Sprint 53
+
+High Performance Smart Cache Manager
+
+Caches
+
+✓ Quotes
+✓ OHLC
+✓ Indicators
+✓ Fundamentals
+✓ News
+
+Thread Safe
+TTL Based
+Multi Timeframe Ready
+
+===========================================================
 """
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 
 
 class MarketCache:
 
-    CACHE_EXPIRY = 300
+    QUOTE_TTL = 20
+
+    OHLC_TTL = 300
+
+    INDICATOR_TTL = 300
+
+    FUNDAMENTAL_TTL = 3600
+
+    NEWS_TTL = 900
 
     def __init__(self):
 
-        self._quotes: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._quotes: dict[str, tuple[float, Any]] = {}
 
-        self._candles: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+        self._ohlc: dict[str, tuple[float, Any]] = {}
 
-        self._fundamentals: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._indicators: dict[str, tuple[float, Any]] = {}
+
+        self._fundamentals: dict[str, tuple[float, Any]] = {}
+
+        self._news: dict[str, tuple[float, Any]] = {}
+
+        self._lock = threading.RLock()
+
+    # =====================================================
+    # Internal
+    # =====================================================
 
     def _expired(
 
@@ -26,15 +63,79 @@ class MarketCache:
 
         timestamp: float,
 
+        ttl: int,
+
     ) -> bool:
 
         return (
 
-            time.time() - timestamp
+            time.time()
 
-        ) > self.CACHE_EXPIRY
+            - timestamp
 
-    # ---------------- Quotes ----------------
+        ) > ttl
+
+    def _get(
+
+        self,
+
+        cache: dict,
+
+        key: str,
+
+        ttl: int,
+
+    ):
+
+        with self._lock:
+
+            item = cache.get(key)
+
+            if item is None:
+
+                return None
+
+            ts, value = item
+
+            if self._expired(
+
+                ts,
+
+                ttl,
+
+            ):
+
+                del cache[key]
+
+                return None
+
+            return value
+
+    def _set(
+
+        self,
+
+        cache: dict,
+
+        key: str,
+
+        value,
+
+    ):
+
+        with self._lock:
+
+            cache[key] = (
+
+                time.time(),
+
+                value,
+
+            )
+
+    # =====================================================
+    # Quote
+    # =====================================================
 
     def get_quote(
 
@@ -44,21 +145,15 @@ class MarketCache:
 
     ):
 
-        item = self._quotes.get(symbol)
+        return self._get(
 
-        if item is None:
+            self._quotes,
 
-            return None
+            symbol,
 
-        ts, value = item
+            self.QUOTE_TTL,
 
-        if self._expired(ts):
-
-            del self._quotes[symbol]
-
-            return None
-
-        return value
+        )
 
     def set_quote(
 
@@ -66,63 +161,107 @@ class MarketCache:
 
         symbol: str,
 
-        quote: dict[str, Any],
+        quote,
 
-    ) -> None:
+    ):
 
-        self._quotes[symbol] = (
+        self._set(
 
-            time.time(),
+            self._quotes,
+
+            symbol,
 
             quote,
 
         )
 
-    # ---------------- Candles ----------------
+    # =====================================================
+    # OHLC
+    # =====================================================
 
-    def get_candles(
-
-        self,
-
-        symbol: str,
-
-    ):
-
-        item = self._candles.get(symbol)
-
-        if item is None:
-
-            return None
-
-        ts, value = item
-
-        if self._expired(ts):
-
-            del self._candles[symbol]
-
-            return None
-
-        return value
-
-    def set_candles(
+    def get_ohlc(
 
         self,
 
-        symbol: str,
-
-        candles: list[dict[str, Any]],
+        key: str,
 
     ):
 
-        self._candles[symbol] = (
+        return self._get(
 
-            time.time(),
+            self._ohlc,
 
-            candles,
+            key,
+
+            self.OHLC_TTL,
 
         )
 
-    # ---------------- Fundamentals ----------------
+    def set_ohlc(
+
+        self,
+
+        key: str,
+
+        dataframe,
+
+    ):
+
+        self._set(
+
+            self._ohlc,
+
+            key,
+
+            dataframe,
+
+        )
+
+    # =====================================================
+    # Indicator
+    # =====================================================
+
+    def get_indicator(
+
+        self,
+
+        key: str,
+
+    ):
+
+        return self._get(
+
+            self._indicators,
+
+            key,
+
+            self.INDICATOR_TTL,
+
+        )
+
+    def set_indicator(
+
+        self,
+
+        key: str,
+
+        value,
+
+    ):
+
+        self._set(
+
+            self._indicators,
+
+            key,
+
+            value,
+
+        )
+
+    # =====================================================
+    # Fundamentals
+    # =====================================================
 
     def get_fundamentals(
 
@@ -132,21 +271,15 @@ class MarketCache:
 
     ):
 
-        item = self._fundamentals.get(symbol)
+        return self._get(
 
-        if item is None:
+            self._fundamentals,
 
-            return None
+            symbol,
 
-        ts, value = item
+            self.FUNDAMENTAL_TTL,
 
-        if self._expired(ts):
-
-            del self._fundamentals[symbol]
-
-            return None
-
-        return value
+        )
 
     def set_fundamentals(
 
@@ -154,44 +287,214 @@ class MarketCache:
 
         symbol: str,
 
-        fundamentals: dict[str, Any],
+        value,
 
     ):
 
-        self._fundamentals[symbol] = (
+        self._set(
 
-            time.time(),
+            self._fundamentals,
 
-            fundamentals,
+            symbol,
+
+            value,
+
+        )
+    # =====================================================
+    # News
+    # =====================================================
+
+    def get_news(
+
+        self,
+
+        symbol: str,
+
+    ):
+
+        return self._get(
+
+            self._news,
+
+            symbol,
+
+            self.NEWS_TTL,
 
         )
 
-    # ---------------- Utilities ----------------
-
-    def clear(
+    def set_news(
 
         self,
 
+        symbol: str,
+
+        news,
+
     ):
 
-        self._quotes.clear()
+        self._set(
 
-        self._candles.clear()
+            self._news,
 
-        self._fundamentals.clear()
+            symbol,
 
-    def statistics(
+            news,
+
+        )
+
+    # =====================================================
+    # Remove
+    # =====================================================
+
+    def remove_quote(
 
         self,
 
+        symbol: str,
+
     ):
 
-        return {
+        with self._lock:
 
-            "quotes": len(self._quotes),
+            self._quotes.pop(symbol, None)
 
-            "candles": len(self._candles),
+    def remove_ohlc(
 
-            "fundamentals": len(self._fundamentals),
+        self,
 
-        }
+        key: str,
+
+    ):
+
+        with self._lock:
+
+            self._ohlc.pop(key, None)
+
+    def remove_indicator(
+
+        self,
+
+        key: str,
+
+    ):
+
+        with self._lock:
+
+            self._indicators.pop(key, None)
+
+    def remove_fundamentals(
+
+        self,
+
+        symbol: str,
+
+    ):
+
+        with self._lock:
+
+            self._fundamentals.pop(symbol, None)
+
+    def remove_news(
+
+        self,
+
+        symbol: str,
+
+    ):
+
+        with self._lock:
+
+            self._news.pop(symbol, None)
+
+    # =====================================================
+    # Utilities
+    # =====================================================
+
+    def clear(self):
+
+        with self._lock:
+
+            self._quotes.clear()
+
+            self._ohlc.clear()
+
+            self._indicators.clear()
+
+            self._fundamentals.clear()
+
+            self._news.clear()
+
+    def statistics(self):
+
+        with self._lock:
+
+            return {
+
+                "quotes": len(self._quotes),
+
+                "ohlc": len(self._ohlc),
+
+                "indicators": len(self._indicators),
+
+                "fundamentals": len(self._fundamentals),
+
+                "news": len(self._news),
+
+                "total": (
+
+                    len(self._quotes)
+
+                    + len(self._ohlc)
+
+                    + len(self._indicators)
+
+                    + len(self._fundamentals)
+
+                    + len(self._news)
+
+                ),
+
+            }
+
+    def cleanup(self):
+
+        with self._lock:
+
+            now = time.time()
+
+            cache_map = {
+
+                self._quotes: self.QUOTE_TTL,
+
+                self._ohlc: self.OHLC_TTL,
+
+                self._indicators: self.INDICATOR_TTL,
+
+                self._fundamentals: self.FUNDAMENTAL_TTL,
+
+                self._news: self.NEWS_TTL,
+
+            }
+
+            for cache, ttl in cache_map.items():
+
+                expired = [
+
+                    key
+
+                    for key, (ts, _) in cache.items()
+
+                    if (now - ts) > ttl
+
+                ]
+
+                for key in expired:
+
+                    cache.pop(key, None)
+
+
+# =========================================================
+# Singleton
+# =========================================================
+
+market_cache = MarketCache()
