@@ -1,58 +1,35 @@
 """
-Main application controller for VYOM.
+Application lifecycle controller for VYOM.
+
+Thin wrapper responsible for startup/shutdown sequencing around the
+ApplicationContainer. main.py depends only on initialize() / shutdown().
 """
 
-from loguru import logger
+from __future__ import annotations
 
-from config import ConfigManager
-from core.logger import LoggerManager
+from core.container import ApplicationContainer
 
 
 class Application:
-    """Main application lifecycle controller."""
+    """Owns the ApplicationContainer and manages its lifecycle."""
 
     def __init__(self) -> None:
-        self.settings = ConfigManager.get_settings()
+        self.container = ApplicationContainer()
 
     def initialize(self) -> None:
-        """Initialize all core components."""
-
-        LoggerManager.configure()
+        """Log application startup. Services are already wired by the
+        container's constructor; this exists to preserve main.py's
+        existing initialize()/shutdown() lifecycle contract."""
+        logger = self.container.logger
+        settings = self.container.settings
 
         logger.info("=" * 60)
-        logger.info(f"Starting {self.settings.APP_NAME} v{self.settings.APP_VERSION}")
+        logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
         logger.info("=" * 60)
-
-        logger.info("Configuration loaded.")
-        logger.info("Logging initialized.")
-
-    def run(self) -> None:
-        """Run the application."""
-
-        self.initialize()
-
-        logger.success("Application started successfully.")
-
-        from app.pipeline.market_pipeline import MarketPipeline
-
-        pipeline = MarketPipeline()
-
-        recommendations = pipeline.run()
-
-        logger.success(
-            f"Generated {len(recommendations)} recommendations."
-        )
-
-        for recommendation in recommendations:
-
-            logger.info(
-                f"{recommendation.symbol:<15}"
-                f"{recommendation.recommendation:<12}"
-                f"Confidence: {recommendation.confidence}"
-            )
+        logger.success("Application initialized.")
 
     def shutdown(self) -> None:
         """Gracefully shut down the application."""
-
-        logger.info("Shutting down application...")
-        logger.success("Application stopped.")
+        self.container.logger.info("Shutting down application...")
+        self.container.events.clear()
+        self.container.logger.success("Application stopped.")

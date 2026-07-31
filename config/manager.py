@@ -2,17 +2,19 @@
 Configuration manager for VYOM.
 """
 
-from .settings import Settings
+from __future__ import annotations
+
+from config.settings import Settings
 
 
 class ConfigManager:
-    """Singleton configuration manager."""
+    """Loads and owns a single Settings instance.
 
-    _settings: Settings | None = None
+    Intended to be constructed once by the dependency-injection container
+    (see core.container.ApplicationContainer) and the resulting Settings
+    passed down explicitly to whatever needs it, rather than accessed as
+    a global singleton from arbitrary modules.
+    """
 
-    @classmethod
-    def get_settings(cls) -> Settings:
-        """Return the shared Settings instance."""
-        if cls._settings is None:
-            cls._settings = Settings()
-        return cls._settings
+    def __init__(self) -> None:
+        self.settings: Settings = Settings()

@@ -2,45 +2,50 @@
 Central logging configuration for VYOM.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
-from loguru import logger
+from loguru import logger as _loguru_logger
 
-from config import ConfigManager
 from config.constants import LOG_FILE_NAME
+from config.settings import Settings
 
 
 class LoggerManager:
-    """Central Loguru logger configuration."""
+    """Configures and owns a Loguru logger for the application.
 
-    _configured = False
+    Receives Settings via constructor injection instead of reaching for a
+    global config singleton, so it can be wired and tested independently.
+    """
 
-    @classmethod
-    def configure(cls) -> None:
-        """Configure Loguru once."""
-        if cls._configured:
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._configured = False
+
+    def configure(self) -> None:
+        """Configure Loguru sinks (console + rotating file). Idempotent."""
+        if self._configured:
             return
 
-        settings = ConfigManager.get_settings()
-
-        log_dir: Path = settings.LOG_DIR
+        log_dir: Path = self._settings.LOG_DIR
         log_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.remove()
+        _loguru_logger.remove()
 
-        # Console logging
-        logger.add(
+        # Console sink
+        _loguru_logger.add(
             sink=lambda msg: print(msg, end=""),
-            level=settings.LOG_LEVEL,
+            level=self._settings.LOG_LEVEL,
             colorize=True,
             backtrace=True,
             diagnose=False,
         )
 
-        # File logging
-        logger.add(
+        # Rotating file sink
+        _loguru_logger.add(
             log_dir / LOG_FILE_NAME,
-            level=settings.LOG_LEVEL,
+            level=self._settings.LOG_LEVEL,
             rotation="10 MB",
             retention="30 days",
             compression="zip",
@@ -50,11 +55,11 @@ class LoggerManager:
             diagnose=False,
         )
 
-        cls._configured = True
+        self._configured = True
 
-    @staticmethod
-    def get_logger():
-        """Return the configured logger."""
-        if not LoggerManager._configured:
-            LoggerManager.configure()
-        return logger
+    @property
+    def logger(self):
+        """Return the configured Loguru logger, configuring it if needed."""
+        if not self._configured:
+            self.configure()
+        return _loguru_logger
