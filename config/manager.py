@@ -1,20 +1,40 @@
-"""
-Configuration manager for VYOM.
-"""
+"""Configuration manager for VYOM."""
 
 from __future__ import annotations
+
+from threading import Lock
 
 from config.settings import Settings
 
 
 class ConfigManager:
-    """Loads and owns a single Settings instance.
+    """Thread-safe singleton wrapper around application settings."""
 
-    Intended to be constructed once by the dependency-injection container
-    (see core.container.ApplicationContainer) and the resulting Settings
-    passed down explicitly to whatever needs it, rather than accessed as
-    a global singleton from arbitrary modules.
-    """
+    _instance: Settings | None = None
+    _lock = Lock()
 
     def __init__(self) -> None:
-        self.settings: Settings = Settings()
+        self._settings = self.__class__.get_settings()
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings
+
+    @classmethod
+    def get_settings(cls) -> Settings:
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = Settings()
+        return cls._instance
+
+    @classmethod
+    def reload(cls) -> Settings:
+        with cls._lock:
+            cls._instance = Settings()
+        return cls._instance
+
+    @classmethod
+    def reset(cls) -> None:
+        with cls._lock:
+            cls._instance = None

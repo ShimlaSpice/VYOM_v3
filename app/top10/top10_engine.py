@@ -1,53 +1,36 @@
 """
 Top Recommendation Engine.
+
+Filters, ranks, sorts, and deduplicates recommendations down to a
+final top-N list, returned as the boundary-facing RankedStock model.
 """
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.top10.models import RankedStock
 from app.top10.ranking_engine import RankingEngine
+
+_ACTIONABLE_DECISIONS = ("STRONG BUY", "BUY", "WATCH")
 
 
 class Top10Engine:
 
-    def __init__(self):
-
+    def __init__(self) -> None:
         self.ranker = RankingEngine()
 
     def generate(
 
         self,
 
-        recommendations: list,
+        recommendations: list[Any],
 
         limit: int = 10,
 
         sort_by: str = "Confidence",
 
-    ) -> list:
-
-        if not recommendations:
-
-            return []
-
-        recommendations = [
-
-            recommendation
-
-            for recommendation in recommendations
-
-            if recommendation.recommendation
-
-            in (
-
-                "STRONG BUY",
-
-                "BUY",
-
-                "WATCH",
-
-            )
-
-        ]
+    ) -> list[RankedStock]:
 
         if not recommendations:
 
@@ -55,15 +38,41 @@ class Top10Engine:
 
         ranked = self.ranker.rank(
 
-            recommendations,
+            [
+
+                r
+
+                for r in recommendations
+
+                if getattr(r, "recommendation", "") in _ACTIONABLE_DECISIONS
+
+            ]
 
         )
 
-        if sort_by.lower() == "score":
+        if not ranked:
 
-            ranked.sort(
+            return []
 
-                key=lambda x: x.scores.get(
+        sort_key = (sort_by or "Confidence").lower()
+
+        key_map = {
+
+            "confidence": lambda r: (
+
+                r.confidence,
+
+                getattr(
+
+                    r,
+
+                    "probability",
+
+                    0,
+
+                ),
+
+                getattr(r, "scores", {}).get(
 
                     "technical",
 
@@ -71,62 +80,100 @@ class Top10Engine:
 
                 ),
 
-                reverse=True,
+            ),
 
-            )
+            "probability": lambda r: (
 
-        elif sort_by.lower() == "probability":
+                getattr(
 
-            ranked.sort(
+                    r,
 
-                key=lambda x: x.probability,
+                    "probability",
 
-                reverse=True,
+                    0,
 
-            )
+                ),
 
-        elif sort_by.lower() == "price":
+                r.confidence,
 
-            ranked.sort(
+            ),
 
-                key=lambda x: x.entry,
+            "score": lambda r: (
 
-            )
+                getattr(r, "scores", {}).get(
 
-        else:
+                    "technical",
 
-            ranked.sort(
+                    0,
 
-                key=lambda x: x.confidence,
+                ),
 
-                reverse=True,
+                r.confidence,
 
-            )
+            ),
 
-        final = []
+            "price": lambda r: (
+
+                getattr(
+
+                    r,
+
+                    "entry",
+
+                    0,
+
+                ),
+
+            ),
+
+        }
+
+        ranked.sort(
+
+            key=key_map.get(
+
+                sort_key,
+
+                key_map["confidence"],
+
+            ),
+
+            reverse=sort_key != "price",
+
+        )
 
         seen = set()
 
+        result = []
+
+        append = result.append
+
+        add = seen.add
+
+        from_recommendation = RankedStock.from_recommendation
+
         for recommendation in ranked:
 
-            if recommendation.symbol in seen:
+            symbol = recommendation.symbol
+
+            if symbol in seen:
 
                 continue
 
-            seen.add(
+            add(symbol)
 
-                recommendation.symbol,
+            append(
+
+                from_recommendation(
+
+                    recommendation,
+
+                )
 
             )
 
-            final.append(
-
-                recommendation,
-
-            )
-
-            if len(final) >= limit:
+            if len(result) >= limit:
 
                 break
 
-        return final
+        return result

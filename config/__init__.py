@@ -1,13 +1,14 @@
-"""
-VYOM Configuration Package
+"""VYOM configuration package."""
 
-This package contains all configuration management for VYOM.
-"""
+from __future__ import annotations
 
-from .settings import Settings
-from .manager import ConfigManager
+from config.manager import ConfigManager
+from config.settings import Settings
+
+settings = ConfigManager().settings
 
 __all__ = [
-    "Settings",
     "ConfigManager",
+    "Settings",
+    "settings",
 ]

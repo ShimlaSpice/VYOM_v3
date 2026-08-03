@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------
+# VYOM v3
+# Core Dependencies
+# -----------------------------------------------------------------------------
+
+loguru==0.7.3
+pydantic==2.11.7
+pydantic-settings==2.10.1
+
+SQLAlchemy==2.0.42
+
+PySide6==6.9.1
+
+httpx==0.28.1
+
+orjson==3.11.1
+
+python-dotenv==1.1.1
+
+apscheduler==3.11.0
+
+dependency-injector==4.48.1
+
+tenacity==9.1.2
+
+rich==14.1.0
+
+feedparser>=6.0.11

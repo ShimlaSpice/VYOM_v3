@@ -41,8 +41,7 @@ class RecommendationEngineV2:
 
     ) -> Recommendation:
 
-        reasons = []
-
+        reasons: list[str] = []
         reasons.extend(technical.get("reasons", []))
         reasons.extend(fundamental.get("reasons", []))
         reasons.extend(news.get("reasons", []))
@@ -50,9 +49,8 @@ class RecommendationEngineV2:
         reasons.extend(risk.get("reasons", []))
         reasons.extend(trade_type.get("reasons", []))
 
-        confidence_score = confidence["confidence"]
-
-        category = trade_type["category"]
+        confidence_score = int(confidence.get("confidence", 0))
+        category = trade_type.get("category", "WATCH")
 
         if category == "POSITIONAL":
 
@@ -109,31 +107,19 @@ class RecommendationEngineV2:
             fundamentals_data = {}
 
         ai_summary = (
-
             f"{recommendation} | "
-
             f"Confidence {confidence_score}% | "
-
-            f"Risk {risk['risk_level']} | "
-
+            f"Risk {risk.get('risk_level', 'MEDIUM')} | "
             f"{len(reasons)} Positive Signals"
-
         )
 
         scores = {
-
-            "technical": technical["score"],
-
-            "fundamental": fundamental["score"],
-
-            "news": news["score"],
-
-            "sector": sector["score"],
-
-            "risk": risk["score"],
-
+            "technical": technical.get("score", 0),
+            "fundamental": fundamental.get("score", 0),
+            "news": news.get("score", 0),
+            "sector": sector.get("score", 0),
+            "risk": risk.get("score", 0),
             "confidence": confidence_score,
-
         }
 
         return Recommendation(
@@ -214,19 +200,19 @@ class RecommendationEngineV2:
 
             ),
 
-            entry=trade_setup["entry"],
+            entry=trade_setup.get("entry", 0.0),
 
-            stop_loss=trade_setup["stop_loss"],
+            stop_loss=trade_setup.get("stop_loss", 0.0),
 
-            target1=trade_setup["target1"],
+            target1=trade_setup.get("target1", 0.0),
 
-            target2=trade_setup["target2"],
+            target2=trade_setup.get("target2", 0.0),
 
-            exit_price=trade_setup["target2"],
+            exit_price=trade_setup.get("target2", 0.0),
 
-            risk_reward=trade_setup["risk_reward"],
+            risk_reward=trade_setup.get("risk_reward", 0.0),
 
-            risk_level=risk["risk_level"],
+            risk_level=risk.get("risk_level", "MEDIUM"),
 
             atr=risk.get(
 

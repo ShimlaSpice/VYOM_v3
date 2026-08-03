@@ -1,161 +1,147 @@
 """
 Provider Manager for VYOM.
 
-Handles multiple market data providers.
+Delegates to an active MarketDataProvider, with a small per-symbol
+MarketContext cache so repeated scans in one session don't refetch.
+Fixes a previously broken import (app.market.providers.yahoo_provider,
+a path that doesn't exist) and drops delegation for the satellite
+methods removed from MarketDataProvider — use the dedicated satellite
+provider classes directly for those.
 """
 
 from __future__ import annotations
 
-from core.market_context import MarketContext
+from typing import Any
 
 from app.market.market_data_provider import MarketDataProvider
-from app.market.providers.yahoo_provider import YahooFinanceProvider
+from app.market.yahoo_provider import YahooFinanceProvider
+from core.market_context import MarketContext
 
 
 class ProviderManager(MarketDataProvider):
 
     def __init__(self) -> None:
-
-        self.providers = [
-            YahooFinanceProvider(),
-        ]
-
+        self.providers: list[MarketDataProvider] = [YahooFinanceProvider()]
         self.active_provider = self.providers[0]
-
         self._contexts: dict[str, MarketContext] = {}
 
     def connect(self) -> None:
-
-        self.active_provider.connect()
+        try:
+            self.active_provider.connect()
+        except Exception:
+            pass
 
     def disconnect(self) -> None:
-
         self.active_provider.disconnect()
 
-    def prefetch(
+    def warmup(
+
         self,
+
         symbols: list[str],
-        period: str = "3mo",
+
+        period: str = "6mo",
+
         interval: str = "1d",
+
     ) -> None:
 
-        self.active_provider.prefetch(
+        self.prefetch(
+
             symbols,
+
             period,
+
             interval,
+
         )
 
-    def get_market_context(
-        self,
-        symbol: str,
-    ) -> MarketContext:
+        for symbol in symbols:
 
-        if symbol not in self._contexts:
+            try:
 
-            self._contexts[symbol] = (
-                self.active_provider.get_market_context(
+                self.get_market_context(
+
                     symbol,
+
                 )
-            )
 
-        return self._contexts[symbol]
+            except Exception:
 
+                pass
+
+
+    
+
+    def prefetch(
+
+        self,
+
+        symbols: list[str],
+
+        period: str = "6mo",
+
+        interval: str = "1d",
+
+    ) -> None:
+
+        self.clear_context_cache()
+
+        self.active_provider.prefetch(
+
+            symbols=symbols,
+
+            period=period,
+
+            interval=interval,
+
+        )
+    def get_market_context(
+
+        self,
+
+        symbol: str,
+
+    ) -> MarketContext | None:
+
+        context = self._contexts.get(symbol)
+
+        if context is not None:
+
+            return context
+
+        try:
+            context = self.active_provider.get_market_context(symbol)
+        except Exception:
+            return None
+
+        if context is None:
+            return None
+
+        self._contexts[symbol] = context
+        return context
     def clear_context_cache(self) -> None:
-
         self._contexts.clear()
 
-    def get_quote(
-        self,
-        symbol: str,
-    ):
+    def get_quote(self, symbol: str) -> dict[str, Any]:
+        return self.active_provider.get_quote(symbol)
 
-        return self.active_provider.get_quote(
-            symbol,
-        )
-
-    def get_bulk_quotes(
-        self,
-        symbols: list[str],
-    ):
-
-        return self.active_provider.get_bulk_quotes(
-            symbols,
-        )
+    def get_bulk_quotes(self, symbols: list[str]) -> dict[str, Any]:
+        return self.active_provider.get_bulk_quotes(symbols)
 
     def get_candles(
-        self,
-        symbol: str,
-        interval: str,
-        limit: int = 100,
-    ):
+        self, symbol: str, interval: str, limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.active_provider.get_candles(symbol, interval, limit)
 
-        return self.active_provider.get_candles(
-            symbol,
-            interval,
-            limit,
-        )
+    def get_fundamentals(self, symbol: str) -> dict[str, Any]:
+        return self.active_provider.get_fundamentals(symbol)
 
-    def get_fundamentals(
-        self,
-        symbol: str,
-    ):
+    def get_news(self, symbol: str) -> dict[str, Any]:
+        return self.active_provider.get_news(symbol)
 
-        return self.active_provider.get_fundamentals(
-            symbol,
-        )
+    def get_watchlist(self, universe: str = "nifty50") -> list[str]:
+        return self.active_provider.get_watchlist(universe)
 
-    def get_news(
-        self,
-        symbol: str,
-    ):
-
-        return self.active_provider.get_news(
-            symbol,
-        )
-
-    def get_watchlist(
-        self,
-        universe: str = "nifty50",
-    ):
-
-        return self.active_provider.get_watchlist(
-            universe,
-        )
-
-    def get_market_status(self):
-
+    def get_market_status(self) -> dict[str, Any]:
         return self.active_provider.get_market_status()
-
-    def get_indices(self):
-
-        return self.active_provider.get_indices()
-
-    def get_sector_data(self):
-
-        return self.active_provider.get_sector_data()
-
-    def get_fii_dii_data(self):
-
-        return self.active_provider.get_fii_dii_data()
-
-    def get_corporate_actions(
-        self,
-        symbol: str,
-    ):
-
-        return self.active_provider.get_corporate_actions(
-            symbol,
-        )
-
-    def get_insider_trades(
-        self,
-        symbol: str,
-    ):
-
-        return self.active_provider.get_insider_trades(
-            symbol,
-        )
-
-    def get_market_breadth(self):
-
-        return self.active_provider.get_market_breadth()

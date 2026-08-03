@@ -10,8 +10,6 @@ Recommendation Pipeline
 Top10
 """
 
-from __future__ import annotations
-
 from app.market.provider_manager import ProviderManager
 from app.pipeline.recommendation_pipeline import RecommendationPipeline
 from app.scanner.scanner import ScannerEngine
@@ -27,9 +25,7 @@ class MarketPipeline:
         self.provider.connect()
 
         self.scanner = ScannerEngine(
-
             self.provider,
-
         )
 
         self.pipeline = RecommendationPipeline()
@@ -37,103 +33,118 @@ class MarketPipeline:
         self.top10 = Top10Engine()
 
     def run(
-
         self,
-
         filters: dict | None = None,
-
     ):
 
         if filters is None:
 
             filters = {
-
                 "universe": "NIFTY50",
-
                 "top": 10,
-
             }
 
         scan_result = self.scanner.scan(
-
             filters=filters,
+        )
 
+        candidates = scan_result.candidates
+
+        if not candidates:
+            return []
+
+        symbols = [
+            c.symbol
+            for c in candidates
+        ]
+
+        self.provider.prefetch(
+            symbols=symbols,
+            period="6mo",
+            interval="1d",
         )
 
         recommendations = []
 
-        for candidate in scan_result.candidates:
+        for candidate in candidates:
 
-            candles = self.provider.get_candles(
+            print(f"[PIPELINE] {candidate.symbol}")
 
-                symbol=candidate.symbol,
+            try:
 
-                interval="1d",
+                candles = self.provider.get_candles(
+                    symbol=candidate.symbol,
+                    interval="1d",
+                    limit=100,
+                )
 
-                limit=100,
+                if len(candles) < 50:
+                    print(f"[SKIP] {candidate.symbol} (Not enough candles)")
+                    continue
 
-            )
+                fundamentals = self.provider.get_fundamentals(
+                    candidate.symbol,
+                ) or {}
 
-            if len(candles) < 50:
+                news = self.provider.get_news(
+                    candidate.symbol,
+                ) or {
+                    "sentiment": "NEUTRAL",
+                    "confidence": 0.50,
+                    "headlines": [],
+                }
 
-                continue
+                recommendation = self.pipeline.build(
+                    candidate=candidate,
+                    candles=candles,
+                    fundamentals=fundamentals,
+                    news=news,
+                    sector=fundamentals.get(
+                        "sector",
+                        "Unknown",
+                    ),
+                )
 
-            fundamentals = self.provider.get_fundamentals(
+                if recommendation is None:
+                    print(f"[SKIP] {candidate.symbol} (No recommendation)")
+                    continue
 
-                candidate.symbol,
+                print(f"[OK] {candidate.symbol}")
 
-            ) or {}
+                recommendations.append(
+                    recommendation,
+                )
 
-            news = self.provider.get_news(
+            except Exception:
 
-                candidate.symbol,
+                print(f"[FAILED] {candidate.symbol}")
 
-            ) or {
+                import traceback
+                traceback.print_exc()
 
-                "sentiment": "NEUTRAL",
-
-                "confidence": 0.50,
-
-                "headlines": [],
-
-            }
-
-            recommendation = self.pipeline.build(
-
-                candidate=candidate,
-
-                candles=candles,
-
-                fundamentals=fundamentals,
-
-                news=news,
-
-                sector=fundamentals.get(
-
-                    "sector",
-
-                    "Unknown",
-
-                ),
-
-            )
-
-            recommendations.append(
-
-                recommendation,
-
-            )
-
-        return self.top10.generate(
-
-            recommendations,
-
-            limit=filters.get(
-
-                "top",
-
-                10,
-
+        recommendations.sort(
+            key=lambda x: (
+                getattr(x, "confidence", 0),
+                getattr(x, "probability", 0),
             ),
-
+            reverse=True,
         )
+
+        print(f"\nGenerated {len(recommendations)} recommendations.\n")
+        
+        for rec in recommendations[:3]:
+            print(f"[RECS] {getattr(rec, 'symbol', '?')} - {getattr(rec, 'recommendation', '?')} ({getattr(rec, 'confidence', 0)}%)")
+
+        ranked = self.top10.generate(
+            recommendations,
+            limit=filters.get(
+                "top",
+                10,
+            ),
+        )
+        
+        print(f"\n[TOP10] Returned {len(ranked)} ranked stocks")
+        for item in ranked[:3]:
+            print(f"[TOP10] {getattr(item, 'symbol', '?')} - {getattr(item, 'price', 0)}")
+        
+        return ranked

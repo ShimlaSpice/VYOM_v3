@@ -56,7 +56,7 @@ QPushButton {
     color: white;
     border: none;
     border-radius: 6px;
-    padding: 8px 16px;
+    padding: 6px 14px;
     font-weight: bold;
 }
 
@@ -69,25 +69,42 @@ QPushButton:pressed {
 }
 
 QPushButton:checked {
-    background: #00A651;
+    background: #0062A3;
+    border: 2px solid #007ACC;
+}
+
+QPushButton:disabled {
+    background: #404040;
+    color: #888;
 }
 
 QTableWidget {
     background: #181818;
     alternate-background-color: #202020;
-    gridline-color: #303030;
+    gridline-color: transparent;
     border: 1px solid #303030;
-    selection-background-color: #007ACC;
+    selection-background-color: #1a4a7a;
     selection-color: white;
+}
+
+QTableWidget::item {
+    padding: 4px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+QTableWidget::item:selected {
+    background: #1a4a7a;
 }
 
 QHeaderView::section {
     background: #262626;
-    color: white;
-    padding: 8px;
+    color: #cccccc;
+    padding: 6px 8px;
     border: none;
-    border-bottom: 1px solid #404040;
+    border-right: 1px solid #333;
+    border-bottom: 2px solid #007ACC;
     font-weight: bold;
+    font-size: 9pt;
 }
 
 QScrollBar:vertical {

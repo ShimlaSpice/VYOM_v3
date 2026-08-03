@@ -8,6 +8,7 @@ from time import perf_counter
 
 from PySide6.QtCore import (
     QTimer,
+    Qt,
 )
 
 from PySide6.QtGui import (
@@ -23,14 +24,99 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from PySide6.QtCore import (
+    QObject,
+    QThread,
+    QTimer,
+    Signal,
+    Slot,
+)
+
 from app.pipeline.market_pipeline import MarketPipeline
 
 from ui.dashboard import Dashboard
 from ui.filter_bar import FilterBar
-from ui.left_sidebar import LeftSidebar
+
 from ui.status_bar import StatusBar
 from ui.top_bar import TopBar
+from app.ai.emotion_engine import EmotionEngine
 
+class ScanWorker(QObject):
+
+    finished = Signal(object)
+
+    failed = Signal(str)
+
+    def __init__(
+
+        self,
+
+        pipeline,
+
+        filters,
+
+    ):
+
+        super().__init__()
+
+        self.pipeline = pipeline
+
+        self.filters = filters
+
+    def run(self):
+        import traceback
+
+        try:
+
+            recommendations = self.pipeline.run(
+
+                self.filters,
+
+            )
+            
+            print(f"[WORKER] Pipeline returned {len(recommendations or [])} items, type={type(recommendations).__name__}")
+
+            # Convert RankedStock objects to dicts for thread-safe signal emission
+            rec_dicts = []
+            for i, rec in enumerate(recommendations or []):
+                print(f"[WORKER] Item {i}: type={type(rec).__name__}")
+                
+                if isinstance(rec, dict):
+                    rec_dicts.append(rec)
+                else:
+                    # Handle both regular objects and slotted objects
+                    if hasattr(rec, '__slots__'):
+                        # Slotted object - extract all slot attributes
+                        rec_dict = {}
+                        for slot in rec.__slots__:
+                            val = getattr(rec, slot, None)
+                            rec_dict[slot] = val
+                        rec_dicts.append(rec_dict)
+                        print(f"[WORKER] Item {i} converted: symbol={rec_dict.get('symbol', '?')}, price={rec_dict.get('price', '?')}")
+                    elif hasattr(rec, '__dict__'):
+                        # Regular object - use its __dict__
+                        rec_dicts.append(rec.__dict__)
+                    else:
+                        # Fallback: try to extract key fields
+                        rec_dicts.append({
+                            'symbol': getattr(rec, 'symbol', ''),
+                            'price': getattr(rec, 'price', 0),
+                            'close': getattr(rec, 'close', 0),
+                            'confidence': getattr(rec, 'confidence', 0),
+                        })
+            
+            print(f"[WORKER] Emitting {len(rec_dicts)} dicts")
+            payload = (rec_dicts, self.filters)
+            print(f"[WORKER] Payload type: {type(payload).__name__}, first item type: {type(rec_dicts[0] if rec_dicts else None).__name__}")
+
+            self.finished.emit(payload)
+
+        except Exception:
+            traceback.print_exc()
+
+            self.failed.emit(
+                traceback.format_exc(),
+            )
 
 class MainWindow(QMainWindow):
     """
@@ -56,8 +142,18 @@ class MainWindow(QMainWindow):
         )
 
         self.pipeline = None
+        self.emotion_engine = EmotionEngine()
+
+        self.scan_thread = None
+
+        self.scan_worker = None
+
+        self.scan_start = 0
 
         self.refresh_timer = QTimer()
+        self._startup_scan_scheduled = False
+        self._pending_recommendations = None
+        self._pending_filters = None
 
         self._build_ui()
 
@@ -70,6 +166,45 @@ class MainWindow(QMainWindow):
             self._auto_refresh,
 
         )
+    def showEvent(self, event):
+        super().showEvent(event)
+
+        if not self._startup_scan_scheduled:
+            self._startup_scan_scheduled = True
+            QTimer.singleShot(0, self._startup_scan)
+
+        self._flush_pending_results()
+
+    def _startup_scan(
+
+        self,
+
+    ):
+
+        self.status.show_message(
+
+            "Initializing market data...",
+
+        )
+
+        self._scan_requested(
+
+            self._collect_filters(),
+
+        )
+
+    def _flush_pending_results(self):
+        if self._pending_recommendations is None:
+            return
+
+        recommendations = self._pending_recommendations
+        filters = self._pending_filters or self._collect_filters()
+        self._pending_recommendations = None
+        self._pending_filters = None
+
+        if self.isVisible():
+            self._scan_finished(recommendations, filters)
+
 
     def _build_ui(
 
@@ -80,8 +215,6 @@ class MainWindow(QMainWindow):
         self.top_bar = TopBar()
 
         self.filter_bar = FilterBar()
-
-        self.sidebar = LeftSidebar()
 
         self.dashboard = Dashboard()
 
@@ -155,12 +288,6 @@ class MainWindow(QMainWindow):
 
         body.addWidget(
 
-            self.sidebar,
-
-        )
-
-        body.addWidget(
-
             self.dashboard,
 
             1,
@@ -193,7 +320,7 @@ class MainWindow(QMainWindow):
 
     ):
 
-        self.sidebar.category_changed.connect(
+        self.filter_bar.category_changed.connect(
 
             self._category_changed,
 
@@ -308,151 +435,325 @@ class MainWindow(QMainWindow):
 
     ) -> None:
 
-        scan_start = perf_counter()
+        if self.pipeline is None:
+
+            self.pipeline = MarketPipeline()
+
+        # --------------------------------------------------
+        # Thread already running?
+        # --------------------------------------------------
+
+        try:
+
+            if (
+
+                self.scan_thread is not None
+
+                and self.scan_thread.isRunning()
+
+            ):
+
+                return
+
+        except RuntimeError:
+
+            self.scan_thread = None
+
+            self.scan_worker = None
+
+        self.scan_start = perf_counter()
+
+        self.filter_bar.scan_button.setEnabled(False)
 
         self.filter_bar.scan_button.setText(
 
-            "🔄 Scanning...",
+            "🔄 Scanning..."
 
         )
 
         self.filter_bar.scan_status.setText(
 
-            "Downloading Market Data...",
+            "Scanning..."
 
         )
 
         self.filter_bar.scan_timer.setText(
 
-            "⏱ 0.00 sec",
+            "⏱ 0.00 sec"
 
         )
 
         self.progress.show()
 
-        self.progress.setValue(
+        self.progress.setValue(5)
 
-            10,
+        self.status.show_message(
+
+            "Loading market universe...",
 
         )
 
-        if hasattr(
+        self.scan_thread = QThread()
 
-            self.status,
+        self.scan_worker = ScanWorker(
 
-            "show_message",
+            self.pipeline,
 
-        ):
+            filters,
 
-            self.status.show_message(
+        )
 
-                "Scanning market...",
+        self.scan_worker.moveToThread(
+
+            self.scan_thread,
+
+        )
+
+        self.scan_thread.started.connect(
+
+            self.scan_worker.run,
+
+        )
+
+        self.scan_worker.finished.connect(
+            self._handle_scan_result,
+        )
+
+        self.scan_worker.failed.connect(
+
+            self._scan_failed,
+
+        )
+
+        self.scan_worker.finished.connect(
+
+            self.scan_thread.quit,
+
+        )
+
+        self.scan_worker.finished.connect(
+
+            self.scan_worker.deleteLater,
+
+        )
+
+        self.scan_thread.finished.connect(
+
+            self.scan_thread.deleteLater,
+
+        )
+
+        self.scan_thread.finished.connect(
+
+            lambda: setattr(
+
+                self,
+
+                "scan_thread",
+
+                None,
 
             )
 
-        if self.pipeline is None:
+        )
 
-            self.pipeline = MarketPipeline()
+        self.scan_thread.finished.connect(
+
+            lambda: setattr(
+
+                self,
+
+                "scan_worker",
+
+                None,
+
+            )
+
+        )
+
+        self.progress.setValue(15)
+
+        self.status.show_message(
+
+            "Downloading market data...",
+
+        )
+
+        self.scan_thread.start()
+
+
+    @Slot(object)
+    def _handle_scan_result(self, payload):
+        if isinstance(payload, tuple) and len(payload) == 2:
+            recommendations, filters = payload
+        else:
+            recommendations, filters = payload, self._collect_filters()
+
+        print(f"[MAINWINDOW] Received {type(recommendations).__name__} with {len(recommendations) if recommendations is not None else 0} items")
+        QTimer.singleShot(0, lambda: self._scan_finished(recommendations, filters))
+
+    @Slot(list)
+    def _scan_finished(
+
+        self,
+
+        recommendations,
+
+        filters,
+
+    ):
+        if not self.isVisible():
+            self._pending_recommendations = list(recommendations or [])
+            self._pending_filters = filters
+            print("[MAINWINDOW] Window not visible, deferring UI update")
+            return
+
+        print(
+            f"[MAINWINDOW] Received {type(recommendations).__name__}"
+            f" with {len(recommendations) if recommendations is not None else 0} items"
+        )
 
         self.progress.setValue(
+            85,
+        )
 
-            25,
+        self.status.show_message(
+            "Preparing recommendations...",
+        )
+
+        elapsed = perf_counter() - self.scan_start
+        market_change = 0.0
+
+        if recommendations:
+
+            market_change = sum(
+
+                getattr(
+
+                    item,
+
+                    "change_percent",
+
+                    0.0,
+
+                )
+
+                for item in recommendations
+
+            ) / len(
+
+                recommendations,
+
+            )
+
+        emotion = self.emotion_engine.evaluate(
+
+            market_change=market_change,
+
+            vix=15,
+
+            breadth=0.62,
+
+            momentum=6.5,
+
+            news_sentiment=0.60,
 
         )
 
-        self.filter_bar.scan_status.setText(
+        self.top_bar.update_emotion(
 
-            "Analyzing Market...",
+            emotion["emotion"],
+
+            emotion["label"],
+
+        )
+        self.dashboard.update_emotion(
+
+            emotion,
 
         )
 
-        recommendations = self.pipeline.run(
+        self.top_bar.update_status(
 
+            "Market Scanned",
+
+        )
+
+        self.status.update_status(
+            market=filters.get("market", "NSE"),
+            scanned=len(recommendations or []),
+            filtered=len(recommendations or []),
+            displayed=len(recommendations or []),
+            scan_time=elapsed,
+            source="Yahoo",
+            jarvis="READY",
+            universe=filters.get("universe", "NIFTY50"),
+            category=filters.get("category", "All"),
+            strategy=filters.get("category", "Intraday"),
+            cache="Fresh",
+        )
+
+        self.top_bar.update_market(
+
+            filters.get(
+
+                "market",
+
+                "NSE",
+
+            ),
+
+        )
+
+        self.top_bar.update_scan_time(
+
+            elapsed,
+
+        )        
+        self.dashboard.recommendation_table.load_data(
+            recommendations,
             filters,
-
         )
+        self.dashboard.recommendation_table.viewport().update()
 
-        elapsed = perf_counter() - scan_start
+        if self.dashboard.recommendation_table.rowCount() > 0:
+            self.dashboard.recommendation_table.selectRow(0)
+            self.dashboard.recommendation_table._emit_selected()
+            print("[TABLE] Auto selecting row 0")
+
+        self.progress.setValue(
+            100,
+        )
 
         self.filter_bar.scan_timer.setText(
 
-            f"⏱ {elapsed:.2f} sec",
-
-        )
-
-        self.progress.setValue(
-
-            80,
+            f"⏱ {elapsed:.2f} sec"
 
         )
 
         self.filter_bar.scan_status.setText(
 
-            "Preparing Dashboard...",
+            emotion["label"]
 
         )
 
-        self.dashboard.recommendation_table.load_data(
+        self.filter_bar.scan_button.setEnabled(True)
 
-            recommendations,
+        self.filter_bar.scan_button.setText(
 
-            filters,
+            "🔍 Scan (F5)"
 
         )
+        self.status.show_message(
 
-        self.progress.setValue(
-
-            100,
-
+            f"Scan completed in {elapsed:.2f} sec",
         )
 
         QTimer.singleShot(
 
-            700,
+            500,
 
-            self.progress.hide,
-
-        )
-
-        message = (
-
-            f"Scan Complete | "
-
-            f"{len(recommendations)} Recommendations | "
-
-            f"Universe: {filters['universe']}"
-
-        )
-
-        if hasattr(
-
-            self.status,
-
-            "show_message",
-
-        ):
-
-            self.status.show_message(
-
-                message,
-
-            )
-
-        print(
-
-            message,
-
-        )
-
-        self.filter_bar.scan_button.setText(
-
-            "🔍 Scan (F5)",
-
-        )
-
-        self.filter_bar.scan_status.setText(
-
-            "Ready",
+            self.progress.hide
 
         )
 
@@ -490,12 +791,82 @@ class MainWindow(QMainWindow):
 
             )
 
-            self.refresh_timer.start(
+            QTimer.singleShot(
 
-                interval,
+                0,
+
+                lambda: self.refresh_timer.start(
+
+                    interval,
+
+                ),
 
             )
 
         else:
 
-            self.refresh_timer.stop()
+            QTimer.singleShot(
+
+                0,
+
+                self.refresh_timer.stop,
+
+            )
+
+
+    def closeEvent(self, event):
+
+        if self.scan_thread is not None:
+
+            try:
+
+                if self.scan_thread.isRunning():
+
+                    self.scan_thread.quit()
+
+                    self.scan_thread.wait()
+
+            except RuntimeError:
+
+                pass
+
+        event.accept()
+
+    def _scan_failed(
+
+        self,
+
+        error,
+
+    ):
+
+        self.progress.hide()
+
+        self.filter_bar.scan_button.setEnabled(
+
+            True,
+
+        )
+
+        self.filter_bar.scan_button.setText(
+
+            "🔍 Scan (F5)",
+
+        )
+
+        self.filter_bar.scan_status.setText(
+
+            "Failed",
+
+        )
+
+        self.status.show_message(
+
+            "Scan failed",
+
+        )
+
+        print(
+
+            error,
+        )
