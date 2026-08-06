@@ -22,36 +22,33 @@ Multi Timeframe Ready
 
 from __future__ import annotations
 
+import pickle
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 
 class MarketCache:
 
-    QUOTE_TTL = 20
+    QUOTE_TTL       = 15        # 15 s — live price
+    OHLC_TTL        = 600       # 10 min — daily bars don't change intraday
+    INDICATOR_TTL   = 600
+    FUNDAMENTAL_TTL = 7200      # 2 h
+    NEWS_TTL        = 900
 
-    OHLC_TTL = 300
-
-    INDICATOR_TTL = 300
-
-    FUNDAMENTAL_TTL = 3600
-
-    NEWS_TTL = 900
+    # Disk cache: survives process restarts (daily bars only)
+    _DISK_DIR  = Path(".vyom_cache")
+    _DISK_TTL  = 3600           # 1 h — re-download disk entry after 1 h
 
     def __init__(self):
-
-        self._quotes: dict[str, tuple[float, Any]] = {}
-
-        self._ohlc: dict[str, tuple[float, Any]] = {}
-
-        self._indicators: dict[str, tuple[float, Any]] = {}
-
+        self._quotes: dict[str, tuple[float, Any]]       = {}
+        self._ohlc: dict[str, tuple[float, Any]]         = {}
+        self._indicators: dict[str, tuple[float, Any]]   = {}
         self._fundamentals: dict[str, tuple[float, Any]] = {}
-
-        self._news: dict[str, tuple[float, Any]] = {}
-
+        self._news: dict[str, tuple[float, Any]]         = {}
         self._lock = threading.RLock()
+        self._DISK_DIR.mkdir(exist_ok=True)
 
     # =====================================================
     # Internal
@@ -176,46 +173,42 @@ class MarketCache:
         )
 
     # =====================================================
-    # OHLC
+    # OHLC  (memory + disk persistence)
     # =====================================================
 
-    def get_ohlc(
+    def _disk_path(self, key: str) -> Path:
+        safe = key.replace(":", "_").replace("/", "_").replace("^", "IX_")
+        return self._DISK_DIR / f"{safe}.pkl"
 
-        self,
+    def get_ohlc(self, key: str):
+        # 1. Check memory cache first
+        mem = self._get(self._ohlc, key, self.OHLC_TTL)
+        if mem is not None:
+            return mem
+        # 2. Check disk cache
+        path = self._disk_path(key)
+        if path.exists():
+            try:
+                age = time.time() - path.stat().st_mtime
+                if age < self._DISK_TTL:
+                    with open(path, "rb") as f:
+                        df = pickle.load(f)
+                    # Promote into memory cache
+                    self._set(self._ohlc, key, df)
+                    return df
+            except Exception:
+                pass
+        return None
 
-        key: str,
-
-    ):
-
-        return self._get(
-
-            self._ohlc,
-
-            key,
-
-            self.OHLC_TTL,
-
-        )
-
-    def set_ohlc(
-
-        self,
-
-        key: str,
-
-        dataframe,
-
-    ):
-
-        self._set(
-
-            self._ohlc,
-
-            key,
-
-            dataframe,
-
-        )
+    def set_ohlc(self, key: str, dataframe):
+        self._set(self._ohlc, key, dataframe)
+        # Persist to disk asynchronously (don't block the caller)
+        path = self._disk_path(key)
+        try:
+            with open(path, "wb") as f:
+                pickle.dump(dataframe, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception:
+            pass
 
     # =====================================================
     # Indicator

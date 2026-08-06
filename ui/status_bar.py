@@ -112,4 +112,3 @@ class StatusBar(QWidget):
             self.lbl_strategy.setText(f"Strategy : {strategy}")
         if cache:
             self.lbl_cache.setText(f"Cache : {cache}")
-        print(f"[STATUS UPDATE] scanned={scanned} filtered={filtered} displayed={displayed}")

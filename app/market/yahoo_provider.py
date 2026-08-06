@@ -8,11 +8,17 @@ instead of ad hoc instance-level dicts.
 
 from __future__ import annotations
 
+import logging
 import math
+import warnings
 from typing import Any
 
 import pandas as pd
 import yfinance as yf
+
+# Suppress yfinance's verbose download/HTTP warnings – they clutter the log
+warnings.filterwarnings("ignore", module="yfinance")
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 from app.market.cache import MarketCache
 from app.market.market_data_provider import MarketDataProvider
@@ -154,7 +160,7 @@ class YahooFinanceProvider(MarketDataProvider):
             interval=interval,
             progress=False,
             auto_adjust=False,
-            threads=False,
+            threads=True,
             group_by="ticker",
         )
 
@@ -208,30 +214,68 @@ class YahooFinanceProvider(MarketDataProvider):
         if df.empty:
             return []
 
-        candles: list[dict[str, Any]] = []
-        for index, row in df.tail(limit).iterrows():
-            try:
-                open_price = float(row["Open"])
-                high_price = float(row["High"])
-                low_price = float(row["Low"])
-                close_price = float(row["Close"])
-                volume = int(row["Volume"])
-            except Exception:
-                continue
+        # Vectorized path — avoid slow iterrows()
+        tail = df.tail(limit).copy()
+        # Normalise column names (prefetch stores lowercase, individual download may be title-case)
+        col_map = {"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}
+        tail.rename(columns=col_map, inplace=True)
+        for col in ("open", "high", "low", "close"):
+            if col not in tail.columns:
+                return []
+        tail = tail.dropna(subset=["open", "high", "low", "close"])
+        if tail.empty:
+            return []
 
-            if any(math.isnan(v) for v in (open_price, high_price, low_price, close_price)):
-                continue
+        timestamps = tail.index.tolist()
+        opens   = tail["open"].tolist()
+        highs   = tail["high"].tolist()
+        lows    = tail["low"].tolist()
+        closes  = tail["close"].tolist()
+        volumes = tail["volume"].tolist() if "volume" in tail.columns else [0] * len(timestamps)
 
-            candles.append({
-                "timestamp": index,
-                "open": open_price,
-                "high": high_price,
-                "low": low_price,
-                "close": close_price,
-                "volume": volume,
-            })
+        return [
+            {"timestamp": ts, "open": float(o), "high": float(h),
+             "low": float(l), "close": float(c), "volume": int(v)}
+            for ts, o, h, l, c, v in zip(timestamps, opens, highs, lows, closes, volumes)
+        ]
 
-        return candles
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _complete_candles(df: pd.DataFrame) -> pd.DataFrame:
+        """Return df with today's partial candle removed if market is open.
+
+        During a live session the last daily bar only has a fraction of the
+        day's volume, making volume_ratio misleading.  Dropping it lets all
+        indicator calculations use the most-recent *complete* candle instead.
+        """
+        from datetime import date, datetime, time as dtime
+        import pytz
+
+        if len(df) < 2:
+            return df
+
+        last_date = df.index[-1]
+        if hasattr(last_date, "date"):
+            last_date = last_date.date()
+        else:
+            last_date = pd.Timestamp(last_date).date()
+
+        today = date.today()
+        if last_date != today:
+            return df   # already complete (after-hours or next-day data)
+
+        # Check IST market hours (09:15 – 15:30 Mon–Fri)
+        ist = pytz.timezone("Asia/Kolkata")
+        now_ist = datetime.now(ist).time()
+        weekday = datetime.now(ist).weekday()
+        market_open  = dtime(9, 15)
+        market_close = dtime(15, 30)
+
+        if weekday < 5 and market_open <= now_ist <= market_close:
+            # Live session — drop today's partial candle for indicators
+            return df.iloc[:-1]
+
+        return df   # market closed, today's candle is complete
 
     def get_market_context(self, symbol: str) -> MarketContext | None:
         """Build the full MarketContext the Scanner and downstream
@@ -243,12 +287,17 @@ class YahooFinanceProvider(MarketDataProvider):
         cache_key = f"{symbol}:1d"
         indicators = self.cache.get_indicator(cache_key)
         if indicators is None:
-            indicators = self._indicator_pipeline.calculate(df)
+            # During live sessions the last row is a partial candle — its volume is
+            # only a fraction of the daily average, which kills the volume_ratio
+            # pre-filter in the scanner.  Use only complete (prior) candles for
+            # indicator calculation so volume_ratio is meaningful throughout the day.
+            indicator_df = self._complete_candles(df)
+            indicators = self._indicator_pipeline.calculate(indicator_df)
             self.cache.set_indicator(cache_key, indicators)
 
         return MarketContext.from_dataframe(
             symbol=symbol,
-            dataframe=df,
+            dataframe=df,          # full df so today's live price is current
             indicators=indicators,
             fundamentals=self.get_fundamentals(symbol),
             news=self.get_news(symbol),

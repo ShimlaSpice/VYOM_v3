@@ -67,56 +67,30 @@ class ScanWorker(QObject):
         import traceback
 
         try:
+            recommendations = self.pipeline.run(self.filters)
 
-            recommendations = self.pipeline.run(
-
-                self.filters,
-
-            )
-            
-            print(f"[WORKER] Pipeline returned {len(recommendations or [])} items, type={type(recommendations).__name__}")
-
-            # Convert RankedStock objects to dicts for thread-safe signal emission
+            # Serialize RankedStock (slotted dataclass) to dicts for Qt thread-safe signal emission
             rec_dicts = []
-            for i, rec in enumerate(recommendations or []):
-                print(f"[WORKER] Item {i}: type={type(rec).__name__}")
-                
+            for rec in (recommendations or []):
                 if isinstance(rec, dict):
                     rec_dicts.append(rec)
+                elif hasattr(rec, '__slots__'):
+                    rec_dicts.append({slot: getattr(rec, slot, None) for slot in rec.__slots__})
+                elif hasattr(rec, '__dict__'):
+                    rec_dicts.append(rec.__dict__)
                 else:
-                    # Handle both regular objects and slotted objects
-                    if hasattr(rec, '__slots__'):
-                        # Slotted object - extract all slot attributes
-                        rec_dict = {}
-                        for slot in rec.__slots__:
-                            val = getattr(rec, slot, None)
-                            rec_dict[slot] = val
-                        rec_dicts.append(rec_dict)
-                        print(f"[WORKER] Item {i} converted: symbol={rec_dict.get('symbol', '?')}, price={rec_dict.get('price', '?')}")
-                    elif hasattr(rec, '__dict__'):
-                        # Regular object - use its __dict__
-                        rec_dicts.append(rec.__dict__)
-                    else:
-                        # Fallback: try to extract key fields
-                        rec_dicts.append({
-                            'symbol': getattr(rec, 'symbol', ''),
-                            'price': getattr(rec, 'price', 0),
-                            'close': getattr(rec, 'close', 0),
-                            'confidence': getattr(rec, 'confidence', 0),
-                        })
-            
-            print(f"[WORKER] Emitting {len(rec_dicts)} dicts")
-            payload = (rec_dicts, self.filters)
-            print(f"[WORKER] Payload type: {type(payload).__name__}, first item type: {type(rec_dicts[0] if rec_dicts else None).__name__}")
+                    rec_dicts.append({
+                        'symbol': getattr(rec, 'symbol', ''),
+                        'price':  getattr(rec, 'price',  0),
+                        'close':  getattr(rec, 'close',  0),
+                        'confidence': getattr(rec, 'confidence', 0),
+                    })
 
-            self.finished.emit(payload)
+            self.finished.emit((rec_dicts, self.filters))
 
         except Exception:
             traceback.print_exc()
-
-            self.failed.emit(
-                traceback.format_exc(),
-            )
+            self.failed.emit(traceback.format_exc())
 
 class MainWindow(QMainWindow):
     """
@@ -589,7 +563,6 @@ class MainWindow(QMainWindow):
         else:
             recommendations, filters = payload, self._collect_filters()
 
-        print(f"[MAINWINDOW] Received {type(recommendations).__name__} with {len(recommendations) if recommendations is not None else 0} items")
         QTimer.singleShot(0, lambda: self._scan_finished(recommendations, filters))
 
     @Slot(list)
@@ -605,17 +578,9 @@ class MainWindow(QMainWindow):
         if not self.isVisible():
             self._pending_recommendations = list(recommendations or [])
             self._pending_filters = filters
-            print("[MAINWINDOW] Window not visible, deferring UI update")
             return
 
-        print(
-            f"[MAINWINDOW] Received {type(recommendations).__name__}"
-            f" with {len(recommendations) if recommendations is not None else 0} items"
-        )
-
-        self.progress.setValue(
-            85,
-        )
+        self.progress.setValue(85,)
 
         self.status.show_message(
             "Preparing recommendations...",

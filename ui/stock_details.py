@@ -1,6 +1,6 @@
 ﻿"""
 Stock Details Panel for VYOM.
-Matches reference: Trade Details, VYOM Analysis, VYOM Summary
+Full-width horizontal layout: Trade Details | VYOM Analysis | VYOM Summary
 """
 
 from __future__ import annotations
@@ -14,23 +14,40 @@ from PySide6.QtWidgets import (
     QLabel,
     QScrollArea,
     QSizePolicy,
-    QTextEdit,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QFont
+
+from ui.company_names import get_company_name
 
 
-def _lbl(text="", bold=False, color=None) -> QLabel:
-    l = QLabel(text)
-    if bold:
-        f = l.font()
-        f.setBold(True)
-        l.setFont(f)
+def _key(text: str) -> QLabel:
+    lbl = QLabel(text)
+    lbl.setStyleSheet("color: #9e9e9e; font-size: 9pt;")
+    lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    return lbl
+
+
+def _val(text: str = "-", color: str | None = None, bold: bool = False) -> QLabel:
+    lbl = QLabel(text)
+    lbl.setWordWrap(True)
+    style = "font-size: 10pt;"
     if color:
-        l.setStyleSheet(f"color: {color};")
-    l.setWordWrap(True)
-    return l
+        style += f" color: {color};"
+    if bold:
+        style += " font-weight: bold;"
+    lbl.setStyleSheet(style)
+    return lbl
+
+
+def _group(title: str) -> tuple[QGroupBox, QGridLayout]:
+    g = QGroupBox(title)
+    lay = QGridLayout(g)
+    lay.setSpacing(5)
+    lay.setContentsMargins(10, 12, 10, 10)
+    return g, lay
 
 
 class StockDetails(QWidget):
@@ -39,215 +56,210 @@ class StockDetails(QWidget):
         super().__init__()
         self._build_ui()
 
+    # ------------------------------------------------------------------
     def _build_ui(self):
-        outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
-        outer_layout.setSpacing(0)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(6)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        # ── PANEL 1: Trade Details ──────────────────────────────────────
+        trade_group, tg = _group("Trade Details")
 
-        content = QWidget()
-        self._content_layout = QVBoxLayout(content)
-        self._content_layout.setContentsMargins(6, 6, 6, 6)
-        self._content_layout.setSpacing(8)
+        self.v_symbol    = _val(bold=True)
+        self.v_company   = _val()
+        self.v_sector    = _val()
+        self.v_industry  = _val()
+        self.v_cmp       = _val(bold=True)
+        self.v_open      = _val()
+        self.v_high      = _val()
+        self.v_low       = _val()
+        self.v_prev      = _val()
+        self.v_vol       = _val()
+        self.v_vwap      = _val()
+        self.v_atr       = _val()
+        self.v_52h       = _val()
+        self.v_52l       = _val()
+        self.v_rsi       = _val()
+        self.v_macd      = _val()
+        self.v_ema20     = _val()
+        self.v_ema50     = _val()
+        self.v_sma20     = _val()
+        self.v_sma50     = _val()
+        self.v_entry     = _val(color="#4caf50", bold=True)
+        self.v_target    = _val(color="#4caf50", bold=True)
+        self.v_sl        = _val(color="#f44336", bold=True)
+        self.v_rr        = _val()
+        self.v_conf      = _val()
+        self.v_prob      = _val()
+        self.v_rec       = _val(bold=True)
 
-        scroll.setWidget(content)
-        outer_layout.addWidget(scroll)
+        # 3 key-value pairs per row
+        rows = [
+            [("Symbol",    self.v_symbol),   ("Company",  self.v_company),   ("Sector",    self.v_sector)],
+            [("Industry",  self.v_industry), ("CMP",      self.v_cmp),       ("52W High",  self.v_52h)],
+            [("52W Low",   self.v_52l),      ("Open",     self.v_open),      ("High",      self.v_high)],
+            [("Low",       self.v_low),      ("Prev Close",self.v_prev),     ("Volume",    self.v_vol)],
+            [("VWAP",      self.v_vwap),     ("ATR (14)", self.v_atr),       ("RSI (14)",  self.v_rsi)],
+            [("MACD",      self.v_macd),     ("EMA 20",   self.v_ema20),     ("EMA 50",    self.v_ema50)],
+            [("SMA 20",    self.v_sma20),    ("SMA 50",   self.v_sma50),     ("Entry",     self.v_entry)],
+            [("Target",    self.v_target),   ("Stop Loss",self.v_sl),        ("Risk Reward",self.v_rr)],
+            [("Confidence",self.v_conf),     ("Probability",self.v_prob),    ("Recommendation",self.v_rec)],
+        ]
+        for r, triplet in enumerate(rows):
+            for c, (key, val) in enumerate(triplet):
+                tg.addWidget(_key(key), r, c * 2)
+                tg.addWidget(val,       r, c * 2 + 1)
+        for col in range(6):
+            tg.setColumnStretch(col, 1 if col % 2 == 1 else 0)
 
-        # ===== TRADE DETAILS GROUP =====
-        trade_group = QGroupBox("Trade Details")
-        trade_layout = QGridLayout(trade_group)
-        trade_layout.setSpacing(4)
-        trade_layout.setContentsMargins(8, 8, 8, 8)
+        # ── PANEL 2: VYOM Analysis ──────────────────────────────────────
+        analysis_group, ag = _group("VYOM Analysis")
 
-        self.lbl_symbol = _lbl("-")
-        self.lbl_company = _lbl("-")
-        self.lbl_sector = _lbl("-")
-        self.lbl_industry = _lbl("-")
-        self.lbl_cmp = _lbl("-")
-        self.lbl_open = _lbl("-")
-        self.lbl_high = _lbl("-")
-        self.lbl_low = _lbl("-")
-        self.lbl_prev_close = _lbl("-")
-        self.lbl_volume = _lbl("-")
-        self.lbl_vwap = _lbl("-")
-        self.lbl_atr = _lbl("-")
-        self.lbl_rsi = _lbl("-")
-        self.lbl_macd = _lbl("-")
-        self.lbl_ema20 = _lbl("-")
-        self.lbl_ema50 = _lbl("-")
-        self.lbl_sma20 = _lbl("-")
-        self.lbl_sma50 = _lbl("-")
-        self.lbl_52w_high = _lbl("-")
-        self.lbl_52w_low = _lbl("-")
-        self.lbl_entry = _lbl("-", color="#28a745")
-        self.lbl_target = _lbl("-", color="#28a745")
-        self.lbl_stop_loss = _lbl("-", color="#dc3545")
-        self.lbl_risk_reward = _lbl("-")
-        self.lbl_confidence = _lbl("-")
-        self.lbl_probability = _lbl("-")
-        self.lbl_recommendation = _lbl("-", bold=True)
+        self.v_trend     = _val()
+        self.v_momentum  = _val()
+        self.v_breakout  = _val()
+        self.v_vol_sig   = _val()
+        self.v_sector_s  = _val()
+        self.v_market_s  = _val()
+        self.v_news      = _val()
+        self.v_risk_bias = _val()
+        self.v_bias      = _val()
+        self.v_verdict   = _val(bold=True)
+        self.v_insight   = _val()
+        self.v_insight.setWordWrap(True)
+        self.v_insight.setStyleSheet("font-size: 9pt; color: #b0b0b0;")
 
-        left_fields = [
-            ("Symbol", self.lbl_symbol),
-            ("Company", self.lbl_company),
-            ("Sector", self.lbl_sector),
-            ("Industry", self.lbl_industry),
-            ("CMP", self.lbl_cmp),
-            ("Open", self.lbl_open),
-            ("High", self.lbl_high),
-            ("Low", self.lbl_low),
-            ("Prev Close", self.lbl_prev_close),
-            ("Volume", self.lbl_volume),
-            ("VWAP", self.lbl_vwap),
-            ("ATR (14)", self.lbl_atr),
+        technical_fields = [
+            ("Trend",           self.v_trend),
+            ("Momentum",        self.v_momentum),
+            ("Breakout",        self.v_breakout),
+            ("Volume Signal",   self.v_vol_sig),
+        ]
+        market_fields = [
+            ("Sector Strength", self.v_sector_s),
+            ("Market Strength", self.v_market_s),
+            ("News Sentiment",  self.v_news),
+        ]
+        risk_fields = [
+            ("Risk Level",      self.v_risk_bias),
+            ("Bias",            self.v_bias),
+            ("Overall Verdict", self.v_verdict),
         ]
 
-        right_fields = [
-            ("52W High", self.lbl_52w_high),
-            ("52W Low", self.lbl_52w_low),
-            ("RSI (14)", self.lbl_rsi),
-            ("MACD", self.lbl_macd),
-            ("EMA 20", self.lbl_ema20),
-            ("EMA 50", self.lbl_ema50),
-            ("SMA 20", self.lbl_sma20),
-            ("SMA 50", self.lbl_sma50),
-            ("Entry", self.lbl_entry),
-            ("Target", self.lbl_target),
-            ("Stop Loss", self.lbl_stop_loss),
-            ("Risk Reward", self.lbl_risk_reward),
-        ]
+        # Section headers + field rows
+        def _section_hdr(text: str) -> QLabel:
+            lbl = QLabel(text.upper())
+            lbl.setStyleSheet("color: #607d8b; font-size: 8pt; font-weight: bold; padding-top: 6px;")
+            return lbl
 
-        for r, (key, val) in enumerate(left_fields):
-            k = _lbl(key, bold=False)
-            k.setStyleSheet("color: #666;")
-            trade_layout.addWidget(k, r, 0)
-            trade_layout.addWidget(val, r, 1)
+        ag_row = 0
+        for section_title, fields in [
+            ("Technical", technical_fields),
+            ("Market",    market_fields),
+            ("Risk",      risk_fields),
+        ]:
+            ag.addWidget(_section_hdr(section_title), ag_row, 0, 1, 4)
+            ag_row += 1
+            for key, val in fields:
+                ag.addWidget(_key(key), ag_row, 0)
+                ag.addWidget(val,       ag_row, 1)
+                ag_row += 1
 
-        for r, (key, val) in enumerate(right_fields):
-            k = _lbl(key, bold=False)
-            k.setStyleSheet("color: #666;")
-            trade_layout.addWidget(k, r, 2)
-            trade_layout.addWidget(val, r, 3)
+        # AI Insight spans full width at bottom
+        ag.addWidget(_section_hdr("AI Insight"), ag_row, 0, 1, 4)
+        ag_row += 1
+        ag.addWidget(self.v_insight, ag_row, 0, 1, 4)
+        ag.setColumnStretch(1, 1)
+        ag.setColumnStretch(3, 1)
+        ag.setRowStretch(ag_row + 1, 1)
 
-        # Bottom rows spanning all columns
-        row_base = max(len(left_fields), len(right_fields))
-        for col_i, (key, val) in enumerate([
-            ("Confidence", self.lbl_confidence),
-            ("Probability", self.lbl_probability),
-            ("Recommendation", self.lbl_recommendation),
-        ]):
-            k = _lbl(key)
-            k.setStyleSheet("color: #666;")
-            trade_layout.addWidget(k, row_base + col_i, 0)
-            trade_layout.addWidget(val, row_base + col_i, 1, 1, 3)
+        # ── PANEL 3: VYOM Summary ───────────────────────────────────────
+        summary_group, sg = _group("VYOM Summary")
 
-        self._content_layout.addWidget(trade_group)
-
-        # ===== VYOM ANALYSIS GROUP =====
-        analysis_group = QGroupBox("VYOM Analysis")
-        analysis_layout = QGridLayout(analysis_group)
-        analysis_layout.setSpacing(4)
-        analysis_layout.setContentsMargins(8, 8, 8, 8)
-
-        self.lbl_trend = _lbl("-")
-        self.lbl_momentum = _lbl("-")
-        self.lbl_breakout = _lbl("-")
-        self.lbl_vol_signal = _lbl("-")
-        self.lbl_sector_strength = _lbl("-")
-        self.lbl_market_strength = _lbl("-")
-        self.lbl_news_sentiment = _lbl("-")
-        self.lbl_ai_insight = _lbl("-")
-        self.lbl_risk_bias = _lbl("-")
-        self.lbl_bias = _lbl("-")
-        self.lbl_verdict = _lbl("-")
-
-        left_analysis = [
-            ("Trend", self.lbl_trend),
-            ("Momentum", self.lbl_momentum),
-            ("Breakout", self.lbl_breakout),
-            ("Volume", self.lbl_vol_signal),
-            ("Sector Strength", self.lbl_sector_strength),
-            ("Market Strength", self.lbl_market_strength),
-            ("News Sentiment", self.lbl_news_sentiment),
-        ]
-
-        right_analysis = [
-            ("AI Insight", self.lbl_ai_insight),
-            ("Risk", self.lbl_risk_bias),
-            ("Bias", self.lbl_bias),
-            ("Overall", self.lbl_verdict),
-        ]
-
-        for r, (key, val) in enumerate(left_analysis):
-            k = _lbl(key)
-            k.setStyleSheet("color: #666;")
-            analysis_layout.addWidget(k, r, 0)
-            analysis_layout.addWidget(val, r, 1)
-
-        for r, (key, val) in enumerate(right_analysis):
-            k = _lbl(key)
-            k.setStyleSheet("color: #666;")
-            analysis_layout.addWidget(k, r, 2)
-            analysis_layout.addWidget(val, r, 3)
-
-        self._content_layout.addWidget(analysis_group)
-
-        # ===== VYOM SUMMARY GROUP =====
-        summary_group = QGroupBox("VYOM Summary")
-        summary_layout = QVBoxLayout(summary_group)
-        summary_layout.setContentsMargins(8, 8, 8, 8)
-        summary_layout.setSpacing(6)
-
-        # Action badge + AI summary
-        top_row = QHBoxLayout()
-        self.lbl_action_badge = _lbl("BUY", bold=True)
-        self.lbl_action_badge.setFixedSize(60, 28)
-        self.lbl_action_badge.setAlignment(Qt.AlignCenter)
-        self.lbl_action_badge.setStyleSheet(
-            "background: #d4edda; color: #155724; border-radius: 4px; font-weight: bold;"
+        # Top: badge + recommendation + confidence
+        self.v_badge  = QLabel("BUY")
+        self.v_badge.setAlignment(Qt.AlignCenter)
+        self.v_badge.setFixedSize(80, 36)
+        self.v_badge.setStyleSheet(
+            "background: #198754; color: #fff; border-radius: 6px; font-weight: bold; font-size: 14pt;"
         )
-        top_row.addWidget(self.lbl_action_badge)
 
-        self.lbl_ai_summary = QLabel("-")
-        self.lbl_ai_summary.setWordWrap(True)
-        self.lbl_ai_summary.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        top_row.addWidget(self.lbl_ai_summary, 1)
-        summary_layout.addLayout(top_row)
+        self.v_rec_lbl = _val("BUY", bold=True)
+        self.v_rec_lbl.setStyleSheet("font-size: 16pt; font-weight: bold; color: #4caf50;")
+        self.v_conf_lbl = _val()
+        self.v_conf_lbl.setStyleSheet("font-size: 11pt; color: #b0b0b0;")
 
-        # Trade metrics row
-        metrics_widget = QWidget()
-        metrics_layout = QGridLayout(metrics_widget)
-        metrics_layout.setSpacing(4)
-        self.lbl_sum_entry = _lbl("-", color="#28a745")
-        self.lbl_sum_target = _lbl("-", color="#28a745")
-        self.lbl_sum_sl = _lbl("-", color="#dc3545")
-        self.lbl_sum_risk = _lbl("-", color="#dc3545")
-        self.lbl_sum_reward = _lbl("-", color="#28a745")
-        self.lbl_sum_rr = _lbl("-")
-        self.lbl_sum_hold = _lbl("-")
+        badge_row = QHBoxLayout()
+        badge_row.addWidget(self.v_badge)
+        badge_col = QVBoxLayout()
+        badge_col.setSpacing(2)
+        badge_col.addWidget(self.v_rec_lbl)
+        badge_col.addWidget(self.v_conf_lbl)
+        badge_row.addLayout(badge_col)
+        badge_row.addStretch()
+        sg.addLayout(badge_row, 0, 0, 1, 4)
 
-        for col, (key, val) in enumerate([
-            ("Entry", self.lbl_sum_entry),
-            ("Target", self.lbl_sum_target),
-            ("Stop Loss", self.lbl_sum_sl),
-            ("Risk", self.lbl_sum_risk),
-            ("Reward", self.lbl_sum_reward),
-            ("RR Ratio", self.lbl_sum_rr),
-            ("Hold Period", self.lbl_sum_hold),
-        ]):
-            k = _lbl(key)
-            k.setStyleSheet("color: #666; font-size: 10px;")
-            metrics_layout.addWidget(k, 0, col)
-            metrics_layout.addWidget(val, 1, col)
+        # Divider
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("color: #333;")
+        sg.addWidget(line, 1, 0, 1, 4)
 
-        summary_layout.addWidget(metrics_widget)
+        # Trade metrics: two columns of key-value
+        self.v_sum_entry  = _val(color="#4caf50", bold=True)
+        self.v_sum_target = _val(color="#4caf50", bold=True)
+        self.v_sum_sl     = _val(color="#f44336", bold=True)
+        self.v_sum_risk   = _val(color="#f44336")
+        self.v_sum_reward = _val(color="#4caf50")
+        self.v_sum_rr     = _val(bold=True)
+        self.v_sum_hold   = _val()
 
-        self._content_layout.addWidget(summary_group)
-        self._content_layout.addStretch()
+        metric_pairs = [
+            ("Entry",       self.v_sum_entry,  "Target",      self.v_sum_target),
+            ("Stop Loss",   self.v_sum_sl,     "Risk Reward", self.v_sum_rr),
+            ("Risk",        self.v_sum_risk,   "Reward",      self.v_sum_reward),
+            ("Hold Period", self.v_sum_hold,   "",            None),
+        ]
+        for i, (k1, v1, k2, v2) in enumerate(metric_pairs):
+            sg.addWidget(_key(k1), i + 2, 0)
+            sg.addWidget(v1,       i + 2, 1)
+            if k2 and v2 is not None:
+                sg.addWidget(_key(k2), i + 2, 2)
+                sg.addWidget(v2,       i + 2, 3)
 
+        # Divider
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.HLine)
+        line2.setStyleSheet("color: #333;")
+        sg.addWidget(line2, 6, 0, 1, 4)
+
+        # AI Summary text
+        sg.addWidget(_key("AI Summary"), 7, 0, Qt.AlignTop)
+        self.v_ai_summary = QLabel("-")
+        self.v_ai_summary.setWordWrap(True)
+        self.v_ai_summary.setStyleSheet("font-size: 9pt; color: #ccc; line-height: 1.4;")
+        self.v_ai_summary.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sg.addWidget(self.v_ai_summary, 7, 1, 1, 3)
+        sg.setColumnStretch(1, 1)
+        sg.setColumnStretch(3, 1)
+        sg.setRowStretch(8, 1)
+
+        # ── Assemble panels in horizontal splitter ──────────────────────
+        self.h_splitter = QSplitter(Qt.Horizontal)
+        self.h_splitter.setChildrenCollapsible(False)
+        for widget in [trade_group, analysis_group, summary_group]:
+            wrapper = QScrollArea()
+            wrapper.setWidgetResizable(True)
+            wrapper.setFrameShape(QFrame.NoFrame)
+            wrapper.setWidget(widget)
+            self.h_splitter.addWidget(wrapper)
+        self.h_splitter.setStretchFactor(0, 35)
+        self.h_splitter.setStretchFactor(1, 35)
+        self.h_splitter.setStretchFactor(2, 30)
+
+        outer.addWidget(self.h_splitter)
+
+    # ------------------------------------------------------------------
     def update_details(self, stock: dict):
         if not stock:
             return
@@ -263,119 +275,113 @@ class StockDetails(QWidget):
             v = stock.get(key, default)
             return str(v) if v not in (None, "", 0) else default
 
-        symbol = gs("symbol")
-        company = symbol.replace(".NS", "").replace(".BO", "")
-        rec = gs("recommendation", "HOLD")
-        confidence = int(gf("confidence"))
-        probability = int(gf("probability"))
+        symbol  = gs("symbol")
+        company = get_company_name(symbol)
+        rec     = gs("recommendation", "HOLD")
+        conf    = int(gf("confidence"))
+        prob    = int(gf("probability"))
 
-        # Trade details
-        self.lbl_symbol.setText(symbol)
-        self.lbl_company.setText(company)
-        self.lbl_sector.setText(gs("sector"))
-        self.lbl_industry.setText(gs("industry"))
-        self.lbl_cmp.setText(f"Rs{gf('close', gf('price')):,.2f}")
-        self.lbl_open.setText(f"Rs{gf('open'):,.2f}")
-        self.lbl_high.setText(f"Rs{gf('high'):,.2f}")
-        self.lbl_low.setText(f"Rs{gf('low'):,.2f}")
-        self.lbl_prev_close.setText(f"Rs{gf('previous_close'):,.2f}")
+        # ── Trade Details ───────────────────────────────────────────────
+        self.v_symbol.setText(symbol)
+        self.v_company.setText(company)
+        self.v_sector.setText(gs("sector"))
+        self.v_industry.setText(gs("industry"))
+        self.v_cmp.setText(f"Rs {gf('close', gf('price')):,.2f}")
+        self.v_open.setText(f"Rs {gf('open'):,.2f}")
+        self.v_high.setText(f"Rs {gf('high'):,.2f}")
+        self.v_low.setText(f"Rs {gf('low'):,.2f}")
+        self.v_prev.setText(f"Rs {gf('previous_close'):,.2f}")
+
         vol = int(gf("volume"))
         if vol >= 10_000_000:
-            vol_str = f"{vol / 10_000_000:.2f} Cr"
+            vs = f"{vol/10_000_000:.2f} Cr"
         elif vol >= 100_000:
-            vol_str = f"{vol / 100_000:.2f} L"
+            vs = f"{vol/100_000:.2f} L"
         else:
-            vol_str = f"{vol:,}"
-        self.lbl_volume.setText(vol_str)
-        self.lbl_vwap.setText(f"Rs{gf('vwap'):,.2f}" if stock.get("vwap") else "-")
-        self.lbl_atr.setText(f"Rs{gf('atr'):,.2f}")
+            vs = f"{vol:,}"
+        self.v_vol.setText(vs)
 
-        scores = stock.get("scores", {}) or {}
-        self.lbl_rsi.setText(f"{scores.get('rsi', gf('rsi', 0)):.1f}" if scores.get("rsi") or stock.get("rsi") else "-")
-        self.lbl_macd.setText(f"{gf('macd'):.2f}" if stock.get("macd") else "-")
-        self.lbl_ema20.setText(f"Rs{gf('ema_20'):,.2f}" if stock.get("ema_20") else "-")
-        self.lbl_ema50.setText(f"Rs{gf('ema_50'):,.2f}" if stock.get("ema_50") else "-")
-        self.lbl_sma20.setText(f"Rs{gf('sma_20'):,.2f}" if stock.get("sma_20") else "-")
-        self.lbl_sma50.setText(f"Rs{gf('sma_50'):,.2f}" if stock.get("sma_50") else "-")
-        self.lbl_52w_high.setText(f"Rs{gf('week_52_high'):,.2f}" if stock.get("week_52_high") else "-")
-        self.lbl_52w_low.setText(f"Rs{gf('week_52_low'):,.2f}" if stock.get("week_52_low") else "-")
-        self.lbl_entry.setText(f"Rs{gf('entry'):,.2f}")
-        self.lbl_target.setText(f"Rs{gf('target1', gf('target')):,.2f}")
-        self.lbl_stop_loss.setText(f"Rs{gf('stop_loss'):,.2f}")
-        rr = gf("risk_reward")
-        self.lbl_risk_reward.setText(f"1 : {rr:.2f}" if rr else "-")
-        self.lbl_confidence.setText(f"{confidence}%")
-        self.lbl_probability.setText(f"{probability}%")
-        self.lbl_recommendation.setText(rec)
+        self.v_vwap.setText(f"Rs {gf('vwap'):,.2f}" if stock.get("vwap") else "-")
+        self.v_atr.setText(f"Rs {gf('atr'):,.2f}")
 
-        # Recommendation color
-        rec_colors = {
-            "BUY": "#28a745", "STRONG BUY": "#155724",
-            "SELL": "#dc3545", "HOLD": "#856404", "WATCH": "#fd7e14",
-        }
-        self.lbl_recommendation.setStyleSheet(
-            f"color: {rec_colors.get(rec.upper(), '#333')}; font-weight: bold;"
-        )
+        sc = stock.get("scores", {}) or {}
+        self.v_rsi.setText(f"{sc.get('rsi', gf('rsi', 0)):.1f}" if sc.get("rsi") or stock.get("rsi") else "-")
+        self.v_macd.setText(f"{gf('macd'):.2f}" if stock.get("macd") else "-")
+        self.v_ema20.setText(f"Rs {gf('ema_20'):,.2f}" if stock.get("ema_20") else "-")
+        self.v_ema50.setText(f"Rs {gf('ema_50'):,.2f}" if stock.get("ema_50") else "-")
+        self.v_sma20.setText(f"Rs {gf('sma_20'):,.2f}" if stock.get("sma_20") else "-")
+        self.v_sma50.setText(f"Rs {gf('sma_50'):,.2f}" if stock.get("sma_50") else "-")
+        self.v_52h.setText(f"Rs {gf('week_52_high'):,.2f}" if stock.get("week_52_high") else "-")
+        self.v_52l.setText(f"Rs {gf('week_52_low'):,.2f}" if stock.get("week_52_low") else "-")
 
-        # VYOM Analysis from scores
-        def score_label(val, thresholds=("Weak", "Moderate", "Strong")):
-            if val is None:
-                return "-"
+        entry_v  = gf("entry")
+        target_v = gf("target1", gf("target"))
+        sl_v     = gf("stop_loss")
+        rr       = gf("risk_reward")
+
+        self.v_entry.setText(f"Rs {entry_v:,.2f}")
+        self.v_target.setText(f"Rs {target_v:,.2f}")
+        self.v_sl.setText(f"Rs {sl_v:,.2f}")
+        self.v_rr.setText(f"1 : {rr:.2f}" if rr else "-")
+        self.v_conf.setText(f"{conf}%")
+        self.v_prob.setText(f"{prob}%")
+        self.v_rec.setText(rec)
+        rec_color = {"BUY": "#4caf50", "STRONG BUY": "#66bb6a", "SELL": "#f44336", "HOLD": "#ffc107"}.get(rec.upper(), "#e0e0e0")
+        self.v_rec.setStyleSheet(f"font-weight: bold; color: {rec_color}; font-size: 10pt;")
+
+        # ── VYOM Analysis ───────────────────────────────────────────────
+        def slbl(val, lo="Weak", med="Moderate", hi="Strong"):
             try:
                 v = float(val)
-                if v >= 70:
-                    return thresholds[2]
-                elif v >= 40:
-                    return thresholds[1]
-                else:
-                    return thresholds[0]
-            except:
-                return str(val)
+                return hi if v >= 70 else med if v >= 40 else lo
+            except (TypeError, ValueError):
+                return str(val) if val else "-"
 
-        reasons = stock.get("reasons", []) or []
-        trend_txt = next((r for r in reasons if "trend" in r.lower()), "")
-        self.lbl_trend.setText(score_label(scores.get("trend_score"), ("Bearish", "Neutral", "Bullish")))
-        self.lbl_momentum.setText(score_label(scores.get("momentum_score"), ("Weak", "Moderate", "Strong")))
-        self.lbl_breakout.setText(score_label(scores.get("breakout_score"), ("Unconfirmed", "Emerging", "Confirmed")))
-        self.lbl_vol_signal.setText(score_label(scores.get("volume_score"), ("Low", "Moderate", "High")))
-        self.lbl_sector_strength.setText(score_label(scores.get("sector_score"), ("Weak", "Moderate", "Strong")))
-        self.lbl_market_strength.setText(score_label(scores.get("market_score"), ("Weak", "Moderate", "Strong")))
-        sentiment = stock.get("news_sentiment", stock.get("sentiment", ""))
-        self.lbl_news_sentiment.setText(str(sentiment) if sentiment else "-")
+        self.v_trend.setText(slbl(sc.get("trend_score"),    "Bearish", "Neutral", "Bullish"))
+        self.v_momentum.setText(slbl(sc.get("momentum_score")))
+        self.v_breakout.setText(slbl(sc.get("breakout_score"), "Unconfirmed", "Emerging", "Confirmed"))
+        self.v_vol_sig.setText(slbl(sc.get("volume_score"),  "Low",    "Moderate", "High"))
+        self.v_sector_s.setText(slbl(sc.get("sector_score")))
+        self.v_market_s.setText(slbl(sc.get("market_score"), "Weak", "Moderate", "Strong"))
+        self.v_news.setText(gs("news_sentiment", gs("sentiment")))
 
-        ai_summary = stock.get("ai_summary", "")
-        insight_short = (ai_summary[:120] + "...") if len(ai_summary) > 120 else ai_summary
-        self.lbl_ai_insight.setText(insight_short or "-")
-        risk_level = stock.get("risk_level", "-")
-        self.lbl_risk_bias.setText(str(risk_level))
+        risk_level = gs("risk_level")
+        self.v_risk_bias.setText(risk_level)
         change_pct = gf("change_percent")
-        self.lbl_bias.setText("Bullish" if change_pct >= 0 else "Bearish")
-        self.lbl_verdict.setText("Positive Setup" if rec in ("BUY", "STRONG BUY") else "Neutral" if rec == "HOLD" else "Negative")
+        self.v_bias.setText("Bullish" if change_pct >= 0 else "Bearish")
+        verdict = "Positive Setup" if rec in ("BUY", "STRONG BUY") else "Neutral" if rec == "HOLD" else "Negative"
+        self.v_verdict.setText(verdict)
+        verdict_color = "#4caf50" if "Positive" in verdict else "#f44336" if "Negative" in verdict else "#ffc107"
+        self.v_verdict.setStyleSheet(f"font-weight: bold; color: {verdict_color}; font-size: 10pt;")
 
-        # VYOM Summary
-        rec_colors2 = {
-            "BUY": ("#155724", "#d4edda"),
-            "STRONG BUY": ("#0d3c14", "#c3e6cb"),
-            "SELL": ("#721c24", "#f8d7da"),
-            "HOLD": ("#856404", "#fff3cd"),
+        ai_txt = gs("ai_summary", "")
+        self.v_insight.setText((ai_txt[:180] + "...") if len(ai_txt) > 180 else ai_txt or "-")
+
+        # ── VYOM Summary ────────────────────────────────────────────────
+        badge_colors = {
+            "BUY":        ("#fff", "#198754"),
+            "STRONG BUY": ("#fff", "#0d6efd"),
+            "HOLD":       ("#212529", "#ffc107"),
+            "SELL":       ("#fff", "#dc3545"),
         }
-        fg, bg = rec_colors2.get(rec.upper(), ("#333", "#eee"))
-        self.lbl_action_badge.setText(rec)
-        self.lbl_action_badge.setStyleSheet(
-            f"background: {bg}; color: {fg}; border-radius: 4px; font-weight: bold;"
+        fg, bg = badge_colors.get(rec.upper(), ("#fff", "#6c757d"))
+        self.v_badge.setText(rec)
+        self.v_badge.setStyleSheet(
+            f"background: {bg}; color: {fg}; border-radius: 6px; font-weight: bold; font-size: 13pt;"
         )
-        self.lbl_ai_summary.setText(ai_summary or "-")
-        self.lbl_sum_entry.setText(f"Rs{gf('entry'):,.2f}")
-        self.lbl_sum_target.setText(f"Rs{gf('target1', gf('target')):,.2f}")
-        self.lbl_sum_sl.setText(f"Rs{gf('stop_loss'):,.2f}")
-        entry_v = gf("entry")
-        target_v = gf("target1", gf("target"))
-        sl_v = gf("stop_loss")
-        risk_val = entry_v - sl_v if entry_v and sl_v else 0
+        self.v_rec_lbl.setText(rec)
+        self.v_rec_lbl.setStyleSheet(f"font-size: 15pt; font-weight: bold; color: {bg};")
+        self.v_conf_lbl.setText(f"Confidence: {conf}%   |   Probability: {prob}%")
+
+        self.v_sum_entry.setText(f"Rs {entry_v:,.2f}")
+        self.v_sum_target.setText(f"Rs {target_v:,.2f}")
+        self.v_sum_sl.setText(f"Rs {sl_v:,.2f}")
+        risk_val   = entry_v - sl_v  if entry_v and sl_v    else 0
         reward_val = target_v - entry_v if target_v and entry_v else 0
-        self.lbl_sum_risk.setText(f"Rs{risk_val:,.2f}")
-        self.lbl_sum_reward.setText(f"Rs{reward_val:,.2f}")
-        self.lbl_sum_rr.setText(f"1 : {rr:.2f}" if rr else "-")
+        self.v_sum_risk.setText(f"Rs {risk_val:,.2f}")
+        self.v_sum_reward.setText(f"Rs {reward_val:,.2f}")
+        self.v_sum_rr.setText(f"1 : {rr:.2f}" if rr else "-")
         category = stock.get("category", "")
-        hold_map = {"Intraday": "Intraday", "Swing": "2 - 5 Days", "Positional": "2 - 4 Weeks", "Long Term": "3+ Months"}
-        self.lbl_sum_hold.setText(hold_map.get(category, "2 - 5 Days"))
+        hold_map = {"Intraday": "Intraday", "Swing": "2-5 Days", "Positional": "2-4 Weeks", "Long Term": "3+ Months"}
+        self.v_sum_hold.setText(hold_map.get(category, "2-5 Days"))
+        self.v_ai_summary.setText(ai_txt or "-")

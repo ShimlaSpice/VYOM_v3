@@ -24,7 +24,6 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QWidget,
 )
 
@@ -55,17 +54,11 @@ class TopBar(QWidget):
         self.scan_time = QLabel("Last Scan : --")
         self.clock = QLabel()
 
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Universal Search (Ctrl+K)")
-        self.search.setFixedWidth(260)
-
         layout = QHBoxLayout()
         layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
 
         layout.addWidget(self.title)
-        layout.addSpacing(20)
-        layout.addWidget(self.search)
         layout.addStretch()
         layout.addWidget(self.market)
         layout.addWidget(self.market_status)
